@@ -1,0 +1,25 @@
+# Dependency directory
+node_modules
+
+# Editors
+.idea
+*.iml
+.vscode/settings.json
+.vscode/bookmarks.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage
+*.log
+
+# Persistent data
+data
+
+# Environment
+.env
+
+# Dist
+dist
