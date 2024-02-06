@@ -1,4 +1,4 @@
-import { $ } from "execa";
+import { $, execaCommand } from "execa";
 import { z } from "zod";
 
 type GetFlakeExportsArgs = {
@@ -11,11 +11,9 @@ type GetFlakeExportsArgs = {
  */
 export async function getFlakeInfo({ absolutePath, rev }: GetFlakeExportsArgs) {
   let gitUrl = `git+file://${absolutePath}`;
-  if (rev) {
-    gitUrl += `?rev=${rev}`;
-  }
+  let revArg = rev ? `?rev=${rev}` : "";
 
-  const result = await $`nix flake show --json ${gitUrl}`;
+  const result = await $`nix flake show --json ${gitUrl}${revArg}`;
   if (result.failed) {
     throw new Error(result.stderr);
   }
@@ -88,4 +86,77 @@ export async function checkFlakeDirty({ absolutePath }: CheckFlakeDirtyArgs) {
   }
 
   return result.stdout.trim() !== "";
+}
+
+type BuildFlakeArgs = {
+  flakeAbsolutePath: string;
+  storeAbsolutePath: string;
+  hostname: string;
+  rev?: string;
+};
+
+const flakeBuildCommandResult = z
+  .array(
+    z.object({
+      drvPath: z.string(),
+      outputs: z.object({
+        out: z.string(),
+      }),
+    })
+  )
+  .length(1);
+
+/**
+ * Given a path, a hostname and a revision, build the flake, with the nix store root being the buildPath.
+ * If rev is not provided, it defaults to the current revision.
+ */
+export async function buildSystemFlake({
+  flakeAbsolutePath: absolutePath,
+  hostname,
+  rev,
+  storeAbsolutePath: buildPath,
+}: BuildFlakeArgs) {
+  let hostnames = await getFlakeHostnames({ absolutePath, rev });
+
+  if (!hostnames.includes(hostname)) {
+    throw new Error(
+      `No flake configuration found for hostname: ${hostname}. Available hostnames: ${hostnames.join(
+        ", "
+      )}`
+    );
+  }
+
+  const nixStoreRoot = buildPath;
+  const gitUrl = `git+file://${absolutePath}`;
+  const revArg = rev ? `?rev=${rev}` : "";
+  const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
+
+  const command = execaCommand(
+    `nix build --json --no-link --store ${nixStoreRoot} ${gitUrl}${revArg}#${attr}`,
+    {
+      stderr: "inherit",
+    }
+  );
+
+  // Pipe stderr to the host
+  const result = await command;
+
+  if (result.failed) {
+    throw new Error(result.stderr);
+  }
+
+  try {
+    const parsedResult = flakeBuildCommandResult.parse(
+      JSON.parse(result.stdout)
+    );
+
+    const parsed = {
+      derivation: parsedResult[0].drvPath,
+      output: parsedResult[0].outputs.out,
+    };
+
+    return parsed;
+  } catch (e) {
+    throw new Error(`Error parsing flake build command result: ${e}`);
+  }
 }
