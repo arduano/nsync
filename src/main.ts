@@ -1,5 +1,6 @@
 import { command, run, string, positional, subcommands } from "cmd-ts";
 import {
+  FlakeBuildResult,
   buildSystemFlake,
   getFlakeHostnames,
   getFlakeInfo,
@@ -11,6 +12,12 @@ import {
   getStoreDeltaPathsDelta,
 } from "./utils/nixStore";
 import { copyOutputToArchive, makeArchiveSubset } from "./utils/nixArchive";
+import {
+  compressInstructionDir,
+  makeDirInstruction,
+} from "./utils/instructions";
+import path from "path";
+import fs from "fs";
 
 const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 
@@ -24,22 +31,29 @@ const dummy = command({
     const tempWorkdirPath = `${nixStorePath}/tmp`;
     const nixArchivePath = `${nixStorePath}/archive`;
 
-    console.log("Building previous revision");
-    const pastRev = "4e9311059d7e2b4bdade9e401566c34d0c72a5d2";
-    const newRev = "029352bf021d316d0e3bbd54c5a5f6c634b5512f";
+    console.log("Building previous revisions");
 
-    const info1 = await buildSystemFlake({
-      flakeAbsolutePath: absolutePath,
-      hostname: "testvm",
-      storeAbsolutePath: nixStorePath,
-      rev: pastRev,
-    });
+    const pastRevs = ["4e9311059d7e2b4bdade9e401566c34d0c72a5d2"];
+    const newRev = "029352bf021d316d0e3bbd54c5a5f6c634b5512f";
+    const hostname = "testvm";
+
+    const oldRevBuildInfos: FlakeBuildResult[] = [];
+    for (const rev of pastRevs) {
+      console.log(`Building revision ${rev}`);
+      const info = await buildSystemFlake({
+        flakeAbsolutePath: absolutePath,
+        hostname,
+        storeAbsolutePath: nixStorePath,
+        rev,
+      });
+
+      oldRevBuildInfos.push(info);
+    }
 
     console.log("Building new revision");
-
-    const info2 = await buildSystemFlake({
+    const newRevBuildInfo = await buildSystemFlake({
       flakeAbsolutePath: absolutePath,
-      hostname: "testvm",
+      hostname,
       storeAbsolutePath: nixStorePath,
       rev: newRev,
     });
@@ -49,27 +63,57 @@ const dummy = command({
     await copyOutputToArchive({
       storePath: nixStorePath,
       archivePath: nixArchivePath,
-      item: info2.output,
+      item: newRevBuildInfo.output,
     });
 
     console.log("Getting path info");
 
     const pathInfo = await getStoreDeltaPathsDelta({
       storePath: nixStorePath,
-      fromRootPathName: info1.output,
-      toRootPathName: info2.output,
+      fromRootPathNames: oldRevBuildInfos.map((info) => info.output),
+      toRootPathName: newRevBuildInfo.output,
     });
 
     console.log("Building new archive");
 
-    const newArchivePath = `${tempWorkdirPath}/subset-${pastRev}-${newRev}`;
+    const commandDirPath = path.join(
+      tempWorkdirPath,
+      `subset-from-${pastRevs.join("-")}-to-${newRev}`
+    );
+    const newArchivePath = path.join(commandDirPath, "archive");
+
+    // Delete old command dir path if exists
+    await fs.promises.rm(commandDirPath, { force: true, recursive: true });
 
     await makeArchiveSubset({
       archivePath: nixArchivePath,
       destinationPath: newArchivePath,
+      infoItemPaths: pathInfo.added.map((info) => info.path),
       dataItemPaths: pathInfo.added.map((info) => info.path),
-      infoItemPaths: pathInfo.allToItems.map((info) => info.path),
     });
+
+    console.log("Making sync store instruction");
+
+    await makeDirInstruction({
+      data: {
+        kind: "switch",
+        item: {
+          archivePath: "archive",
+          itemPath: newRevBuildInfo.output,
+        },
+        deltaDependencyRevs: pastRevs,
+        newRev,
+      },
+      destinationFolder: commandDirPath,
+    });
+
+    await compressInstructionDir({
+      dirPath: commandDirPath,
+      destinationPath: path.join(tempWorkdirPath, "instruction.tar.xz"),
+    });
+
+    // Delete the command dir path
+    await fs.promises.rm(commandDirPath, { force: true, recursive: true });
   },
 });
 

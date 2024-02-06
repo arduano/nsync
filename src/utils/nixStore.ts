@@ -150,7 +150,7 @@ export function getPathHashFromPath(itemPath: string) {
 
 type GetStoreDeltaPathsDeltaArgs = {
   storePath: string;
-  fromRootPathName: string;
+  fromRootPathNames: string[];
   toRootPathName: string;
 };
 
@@ -159,28 +159,29 @@ type GetStoreDeltaPathsDeltaArgs = {
  */
 export async function getStoreDeltaPathsDelta({
   storePath,
-  fromRootPathName,
+  fromRootPathNames,
   toRootPathName,
 }: GetStoreDeltaPathsDeltaArgs) {
-  const fromItems = await getPathInfoTreeSearch({
-    storePath: storePath,
-    rootPathName: fromRootPathName,
-  });
+  const fromItems = await Promise.all(
+    fromRootPathNames.map((pathName) =>
+      getPathInfoTreeSearch({
+        storePath: storePath,
+        rootPathName: pathName,
+      })
+    )
+  );
   const toItems = await getPathInfoTreeSearch({
     storePath: storePath,
     rootPathName: toRootPathName,
   });
 
-  const fromPathsSet = new Set(fromItems.map((info) => info.path));
-  const toPathsSet = new Set(toItems.map((info) => info.path));
-
+  const fromPathsSet = new Set(
+    fromItems.flatMap((group) => group.map((info) => info.path))
+  );
   const added = toItems.filter((item) => !fromPathsSet.has(item.path));
-  const removed = fromItems.filter((item) => !toPathsSet.has(item.path));
 
   return {
-    allFromItems: fromItems,
-    allToItems: toItems,
+    allResultingItems: toItems,
     added,
-    removed,
   };
 }

@@ -160,3 +160,5 @@ export async function buildSystemFlake({
     throw new Error(`Error parsing flake build command result: ${e}`);
   }
 }
+
+export type FlakeBuildResult = Awaited<ReturnType<typeof buildSystemFlake>>;
