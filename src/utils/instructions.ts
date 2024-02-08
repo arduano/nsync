@@ -44,7 +44,7 @@ export async function makeDirInstruction({
 
 type CompressInstructionDirArgs = {
   instructionDir: string;
-  destinationPath: string | '-';
+  destinationPath: string | "-";
 };
 
 export async function compressInstructionDir({
@@ -57,16 +57,18 @@ export async function compressInstructionDir({
   const tarFilesCommand = execaCommand(`tar -cf - -C ${dirPath} .`, {
     stdout: "pipe",
     stderr: "inherit",
+    buffer: false,
   });
 
   if (!tarFilesCommand.stdout) {
     throw new Error("Failed to get stdout for tar");
   }
 
-  const xzCompressCommand = execaCommand(`xz -9 -zcf -`, {
+  const xzCompressCommand = execaCommand(`xz -zce -9 -`, {
     stdin: tarFilesCommand.stdout,
     stdout: "pipe",
     stderr: "inherit",
+    buffer: false,
   });
 
   if (!xzCompressCommand.stdout) {
@@ -82,4 +84,5 @@ export async function compressInstructionDir({
 
   // Wait for xz to complete
   await xzCompressCommand;
+  await tarFilesCommand;
 }

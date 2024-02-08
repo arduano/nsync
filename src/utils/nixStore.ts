@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { $, execaCommand } from "execa";
+import { $, execa, execaCommand } from "execa";
 
 const pathInfoData = z.object({
   ca: z.string().optional(),
@@ -65,7 +65,7 @@ export async function getPathInfo({
 }
 
 type GetPathsInfoArgs = {
-  storePath: string;
+  storePath?: string;
   pathNames: string[];
 };
 
@@ -74,11 +74,11 @@ type GetPathsInfoArgs = {
  * Returns a map from path to info.
  */
 export async function getPathsInfo({
-  storePath: storePath,
+  storePath,
   pathNames,
 }: GetPathsInfoArgs): Promise<Record<string, RelevantNixPathInfo>> {
-  const result =
-    await $`nix path-info --json --store ${storePath} ${pathNames}`;
+  const storeArg = storePath ? `--store ${storePath}` : "";
+  const result = await execaCommand(`nix path-info --json ${storeArg} ${pathNames.join(' ')}`);
   if (result.failed) {
     throw new Error(result.stderr);
   }
@@ -93,12 +93,23 @@ export async function getPathsInfo({
     mapParsedPathInfoToRelevantPathInfo(item),
   ]);
 
-  return Object.fromEntries(entries);
+  let map = Object.fromEntries(entries);
+
+  // Ensure all paths are present
+  for (let pathName of pathNames) {
+    if (!map[pathName]) {
+      throw new Error(
+        `Could not find path info for ${pathName}, it's likely absent`
+      );
+    }
+  }
+
+  return map;
 }
 
 type GetPathInfoTreeSearchArgs = {
-  storePath: string;
-  rootPathName: string;
+  storePath?: string;
+  rootPathNames: string[];
 };
 
 /**
@@ -106,13 +117,12 @@ type GetPathInfoTreeSearchArgs = {
  */
 export async function getPathInfoTreeSearch({
   storePath,
-  rootPathName,
+  rootPathNames,
 }: GetPathInfoTreeSearchArgs): Promise<RelevantNixPathInfo[]> {
   const pathInfos: RelevantNixPathInfo[] = [];
-  const foundPaths = new Set<string>();
 
-  let queue = [rootPathName];
-  foundPaths.add(rootPathName);
+  let queue = [...rootPathNames];
+  const foundPaths = new Set<string>(...rootPathNames);
 
   while (queue.length > 0) {
     const infos = await getPathsInfo({
@@ -149,7 +159,7 @@ export function getPathHashFromPath(itemPath: string) {
 }
 
 type GetStoreDeltaPathsDeltaArgs = {
-  storePath: string;
+  storePath?: string;
   fromRootPathNames: string[];
   toRootPathName: string;
 };
@@ -166,13 +176,13 @@ export async function getStoreDeltaPathsDelta({
     fromRootPathNames.map((pathName) =>
       getPathInfoTreeSearch({
         storePath: storePath,
-        rootPathName: pathName,
+        rootPathNames: [pathName],
       })
     )
   );
   const toItems = await getPathInfoTreeSearch({
     storePath: storePath,
-    rootPathName: toRootPathName,
+    rootPathNames: [toRootPathName],
   });
 
   const fromPathsSet = new Set(

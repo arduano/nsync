@@ -12,11 +12,11 @@ export default defineConfig(({ watch, entry, external }) => {
   return {
     entry: ["src/main.ts"],
     splitting: false,
-    sourcemap: 'inline',
+    sourcemap: true,
     clean: true,
     format: ["cjs"],
     platform: "node",
-    minify: true,
+    minify: false,
     dts: false,
     bundle: true,
     metafile: true,

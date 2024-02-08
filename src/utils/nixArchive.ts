@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getPathHashFromPath, getPathsInfo } from "./nixStore";
 
 type CopyOutputToArchiveArgs = {
-  storePath: string;
+  storePath?: string;
   item: string;
   archivePath: string;
 };
@@ -15,11 +15,12 @@ type CopyOutputToArchiveArgs = {
  */
 export async function copyOutputToArchive({
   storePath,
-  item: derivation,
+  item,
   archivePath,
 }: CopyOutputToArchiveArgs) {
+  const storeArg = storePath ? `--store ${storePath}` : "";
   const command = execaCommand(
-    `nix copy --to file://${archivePath} --store ${storePath} ${derivation}`,
+    `nix copy --to file://${archivePath} ${storeArg} ${item}`,
     {
       stderr: "inherit",
     }
@@ -105,5 +106,31 @@ export async function makeArchiveSubset({
     const destinationNarPath = path.join(destinationNarPathFolder, urlFile);
     await fs.promises.mkdir(destinationNarPathFolder, { recursive: true });
     await fs.promises.copyFile(narPath, destinationNarPath);
+  }
+}
+
+type CopyArchiveToStoreArgs = {
+  archivePath: string;
+  item: string;
+  storePath?: string;
+};
+
+export async function copyArchiveToStore({
+  item,
+  archivePath,
+  storePath,
+}: CopyArchiveToStoreArgs) {
+  const storeArg = storePath ? `--store=${storePath}` : "";
+  const command = execaCommand(
+    `nix copy --from file://${archivePath} ${storeArg} ${item}`,
+    {
+      stderr: "inherit",
+    }
+  );
+
+  const result = await command;
+
+  if (result.failed) {
+    throw new Error(result.stderr);
   }
 }
