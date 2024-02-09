@@ -29,6 +29,7 @@ import {
   copyNarinfoFilesToCache,
   getNarinfoFileListForRevisions,
 } from "./utils/clientStore";
+import { getNixStoreGenerations } from "./utils/nixGenerations";
 
 const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 
@@ -163,9 +164,22 @@ const build = command({
   },
 });
 
+const listGenerations = command({
+  name: "list the generations",
+  args: {
+    // someArg: positional({ type: string, displayName: "some arg" }),
+  },
+  handler: async ({}) => {
+    const generations = await getNixStoreGenerations(
+      "/nix/var/nix/profiles/system"
+    );
+    console.log(generations);
+  },
+});
+
 const app = subcommands({
   name: "Nix remote transfer",
-  cmds: { dummy, dummy2, build },
+  cmds: { dummy, dummy2, build, listGenerations },
 });
 
 run(app, process.argv.slice(2));
