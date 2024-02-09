@@ -72,18 +72,18 @@ export async function buildSystemUpdateInstruction({
   console.log("Building new archive");
 
   let pastRevsStr = pastRevs.length > 0 ? pastRevs.join("-") : "root";
-  const commandDirPath = path.join(
+  const instructionDirPath = path.join(
     tempWorkdirPath,
     `subset-from-${pastRevsStr}-to-${newRev}`
   );
-  const newArchivePath = path.join(commandDirPath, "archive");
+  const newArchivePath = path.join(instructionDirPath, "archive");
 
   console.log(
     `${pathInfo.added.length} paths added, with a total ${pathInfo.allResultingItems.length} store items.`
   );
 
   // Delete old command dir path if exists
-  await fs.promises.rm(commandDirPath, { force: true, recursive: true });
+  await fs.promises.rm(instructionDirPath, { force: true, recursive: true });
 
   await makeArchiveSubset({
     archivePath: nixArchivePath,
@@ -104,16 +104,16 @@ export async function buildSystemUpdateInstruction({
       deltaDependencyRevs: pastRevs,
       newRev,
     },
-    destinationFolder: commandDirPath,
+    destinationFolder: instructionDirPath,
   });
 
   await compressInstructionDir({
-    dirPath: commandDirPath,
+    instructionDir: instructionDirPath,
     destinationPath,
   });
 
   // Delete the command dir path
-  // await fs.promises.rm(commandDirPath, { force: true, recursive: true });
+  await fs.promises.rm(instructionDirPath, { force: true, recursive: true });
 }
 
 // type Copy = {

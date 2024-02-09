@@ -5,7 +5,9 @@ import fs from "fs";
 import { execaCommand } from "execa";
 
 const archiveItemRef = z.object({
+  // Path of the archive within the instruction, e.g. `archive`
   archivePath: z.string(),
+  // Path of the root nix item to copy, e.g. `/nix/store/whatever`
   itemPath: z.string(),
 });
 
@@ -48,13 +50,10 @@ type CompressInstructionDirArgs = {
 };
 
 export async function compressInstructionDir({
-  dirPath,
+  instructionDir,
   destinationPath,
-}: {
-  dirPath: string;
-  destinationPath: string;
-}) {
-  const tarFilesCommand = execaCommand(`tar -cf - -C ${dirPath} .`, {
+}: CompressInstructionDirArgs) {
+  const tarFilesCommand = execaCommand(`tar -cf - -C ${instructionDir} .`, {
     stdout: "pipe",
     stderr: "inherit",
     buffer: false,
@@ -85,4 +84,54 @@ export async function compressInstructionDir({
   // Wait for xz to complete
   await xzCompressCommand;
   await tarFilesCommand;
+}
+
+type DecompressInstructionDirArgs = {
+  instructionPath: string;
+  destinationDir: string;
+};
+
+export async function decompressInstructionDir({
+  instructionPath,
+  destinationDir,
+}: DecompressInstructionDirArgs) {
+  const xzDecompressCommand = execaCommand(`xz -d -c ${instructionPath}`, {
+    stdout: "pipe",
+    stderr: "inherit",
+    buffer: false,
+  });
+
+  if (!xzDecompressCommand.stdout) {
+    throw new Error("Failed to get stdout for xz");
+  }
+
+  const tarExtractCommand = execaCommand(`tar -xf - -C ${destinationDir}`, {
+    stdin: xzDecompressCommand.stdout,
+    stderr: "inherit",
+    buffer: false,
+  });
+
+  // Wait for tar to complete
+  await tarExtractCommand;
+  await xzDecompressCommand;
+}
+
+export async function readDirInstruction(dir: string) {
+  const instructionPath = path.join(dir, "instruction.json");
+
+  try {
+    const instructionData = await fs.promises.readFile(
+      instructionPath,
+      "utf-8"
+    );
+    const json = JSON.parse(instructionData);
+    const parsed = storeSwitchCommand.safeParse(json);
+    if (!parsed.success) {
+      throw new Error(parsed.error.message);
+    }
+
+    return parsed.data;
+  } catch (e) {
+    throw new Error("Invalid instruction data");
+  }
 }

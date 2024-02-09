@@ -12,7 +12,7 @@ export default defineConfig(({ watch, entry, external }) => {
   return {
     entry: ["src/main.ts"],
     splitting: false,
-    sourcemap: true,
+    // sourcemap: true,
     clean: true,
     format: ["cjs"],
     platform: "node",
@@ -22,7 +22,7 @@ export default defineConfig(({ watch, entry, external }) => {
     metafile: true,
     treeshake: true,
     noExternal: ["cmd-ts", "execa"],
-    onSuccess: `node --enable-source-maps dist/main.js ${args.join(" ")}`,
+    onSuccess: `node dist/main.js ${args.join(" ")}`,
     loader: {
       ".json": "copy",
     },

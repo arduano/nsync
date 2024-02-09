@@ -120,9 +120,11 @@ export async function copyArchiveToStore({
   archivePath,
   storePath,
 }: CopyArchiveToStoreArgs) {
-  const storeArg = storePath ? `--store=${storePath}` : "";
+  const storeArg = storePath ? `--store ${storePath}` : "";
+  // TODO: This command must always be run as sudo, due to https://github.com/NixOS/nix/issues/1761
+  // We could try incorporating signatures in the future.
   const command = execaCommand(
-    `nix copy --from file://${archivePath} ${storeArg} ${item}`,
+    `nix copy --no-check-sigs --from file://${archivePath} ${storeArg} ${item}`,
     {
       stderr: "inherit",
     }
