@@ -4,7 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "DEV=false yarn tsup -- --"
+    "start": "DEV=false yarn tsup && node dist/main.js",
+    "build": "yarn tsup"
   },
   "dependencies": {
     "@types/ink": "^2.0.3",

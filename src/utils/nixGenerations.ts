@@ -1,9 +1,6 @@
 import path from "path";
 import fs from "fs";
-
-function exists<T>(value: T | undefined | null): value is T {
-  return value != null;
-}
+import { exists } from "./helpers";
 
 export async function getNixStoreGenerations(profilePrefix: string) {
   const folderName = path.dirname(profilePrefix);

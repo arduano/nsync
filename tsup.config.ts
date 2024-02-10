@@ -21,8 +21,7 @@ export default defineConfig(({ watch, entry, external }) => {
     bundle: true,
     metafile: true,
     treeshake: true,
-    noExternal: ["cmd-ts", "execa"],
-    onSuccess: `node dist/main.js ${args.join(" ")}`,
+    noExternal: ["cmd-ts", "execa", "zod"],
     loader: {
       ".json": "copy",
     },

@@ -32,7 +32,8 @@ export async function buildSystemUpdateInstruction({
 
   console.log("Building previous revisions");
 
-  const oldRevBuildInfos: FlakeBuildResult[] = [];
+  type BuildInfo = FlakeBuildResult & { rev: string };
+  const oldRevBuildInfos: BuildInfo[] = [];
   for (const rev of pastRevs) {
     console.log(`Building revision ${rev}`);
     const info = await buildSystemFlake({
@@ -42,7 +43,10 @@ export async function buildSystemUpdateInstruction({
       rev,
     });
 
-    oldRevBuildInfos.push(info);
+    oldRevBuildInfos.push({
+      rev,
+      ...info,
+    });
   }
 
   console.log("Building new revision");
@@ -101,7 +105,10 @@ export async function buildSystemUpdateInstruction({
         archivePath: "archive",
         itemPath: newRevBuildInfo.output,
       },
-      deltaDependencyRevs: pastRevs,
+      deltaDependencies: oldRevBuildInfos.map((info) => ({
+        nixPath: info.output,
+        gitRevision: info.rev,
+      })),
       newRev,
     },
     destinationFolder: instructionDirPath,

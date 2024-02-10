@@ -101,30 +101,25 @@ export async function saveClientStoreConfig({
 type GetNarinfoFileListForRevisionsArgs = {
   storePath: string;
   clientStateStorePath: string;
-  revs: string[];
+  nixPaths: string[];
 };
 
 /**
  * Takes the absolute store path, the client state store path, and the git revisions.
  * Returns the list of .narinfo files (absolute paths) that represent the git revisions.
  */
-export async function getNarinfoFileListForRevisions({
+export async function getNarinfoFileListForNixPaths({
   storePath,
   clientStateStorePath,
-  revs,
+  nixPaths,
 }: GetNarinfoFileListForRevisionsArgs) {
   const clientStateConfig = await readClientStoreConfig({
     clientStateStorePath,
     storePath,
   });
 
-  const generations = clientStateConfig.generations.filter((gen) =>
-    revs.includes(gen.gitRevision)
-  );
-
-  const roots = generations.map((gen) => gen.nixPath);
   const pathInfos = await getPathInfoTreeSearch({
-    rootPathNames: roots,
+    rootPathNames: nixPaths,
     storePath,
   });
 

@@ -11,10 +11,15 @@ const archiveItemRef = z.object({
   itemPath: z.string(),
 });
 
+const storeRoot = z.object({
+  nixPath: z.string(),
+  gitRevision: z.string(),
+});
+
 const storeSwitchCommand = z.object({
   kind: z.literal("switch"),
   item: archiveItemRef,
-  deltaDependencyRevs: z.array(z.string()),
+  deltaDependencies: z.array(storeRoot),
   newRev: z.string(),
 });
 
@@ -133,5 +138,18 @@ export async function readDirInstruction(dir: string) {
     return parsed.data;
   } catch (e) {
     throw new Error("Invalid instruction data");
+  }
+}
+
+export async function assertInstructionDirValid(dir: string) {
+  const instruction = await readDirInstruction(dir);
+
+  switch (instruction.kind) {
+    case "switch":
+      const archivePath = path.join(dir, instruction.item.archivePath);
+      if (!fs.existsSync(archivePath)) {
+        throw new Error("Archive does not exist");
+      }
+      break;
   }
 }

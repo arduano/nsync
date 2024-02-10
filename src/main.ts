@@ -17,6 +17,7 @@ import {
   makeArchiveSubset,
 } from "./utils/nixArchive";
 import {
+  assertInstructionDirValid,
   compressInstructionDir,
   decompressInstructionDir,
   makeDirInstruction,
@@ -27,9 +28,10 @@ import fs from "fs";
 import { buildSystemUpdateInstruction } from "./utils/operations";
 import {
   copyNarinfoFilesToCache,
-  getNarinfoFileListForRevisions,
+  getNarinfoFileListForNixPaths,
 } from "./utils/clientStore";
 import { getNixStoreGenerations } from "./utils/nixGenerations";
+import { getAbsoluteFilesListInDir } from "./utils/files";
 
 const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 
@@ -64,7 +66,9 @@ const dummy2 = command({
     // someArg: positional({ type: string, displayName: "some arg" }),
   },
   handler: async ({}) => {
-    const instructionPath = `${absolutePath}/.nix/instruction.tar.xz`;
+    const instructionPath = `${absolutePath}/.nix/instruction_increment.tar.xz`;
+    // const instructionPath = `${absolutePath}/.nix/instruction_full.tar.xz`;
+
     const workdirPath = `${absolutePath}/.nix/tmp/installer-workdir`;
     const clientStateStorePath = `${absolutePath}/.nix/tmp/client-state-store`;
     const storePath = `${absolutePath}/.nix2`;
@@ -87,30 +91,19 @@ const dummy2 = command({
       throw new Error("Invalid instruction kind");
     }
 
+    await assertInstructionDirValid(workdirPath);
+
     // Copy all the narinfo files into the archive
     const archivePath = path.join(workdirPath, instruction.item.archivePath);
 
-    // Assert the archive exists
-    if (!fs.existsSync(archivePath)) {
-      throw new Error("Archive does not exist");
-    }
-
-    const existingNarinfoFiles = await fs.promises.readdir(archivePath);
-    const existingNarinfoPaths = existingNarinfoFiles.map((file) =>
-      path.join(archivePath, file)
+    const existingNarinfoFilePaths = await getAbsoluteFilesListInDir(
+      archivePath
     );
-    const existingNarinfoFilePaths = [];
-    for (const narinfoPath of existingNarinfoPaths) {
-      const stat = await fs.promises.stat(narinfoPath);
-      if (stat.isFile()) {
-        existingNarinfoFilePaths.push(narinfoPath);
-      }
-    }
 
-    const narinfoFiles = await getNarinfoFileListForRevisions({
+    const narinfoFiles = await getNarinfoFileListForNixPaths({
       storePath: storePath,
       clientStateStorePath: clientStateStorePath,
-      revs: instruction.deltaDependencyRevs,
+      nixPaths: instruction.deltaDependencies.map((d) => d.nixPath),
     });
 
     for (const narinfoFile of narinfoFiles) {
