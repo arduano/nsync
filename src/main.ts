@@ -1,4 +1,12 @@
-import { command, run, string, positional, subcommands } from "cmd-ts";
+import {
+  command,
+  run,
+  string,
+  positional,
+  flag,
+  option,
+  subcommands,
+} from "cmd-ts";
 import {
   FlakeBuildResult,
   buildSystemFlake,
@@ -32,6 +40,7 @@ import {
 } from "./utils/clientStore";
 import { getNixStoreGenerations } from "./utils/nixGenerations";
 import { getAbsoluteFilesListInDir } from "./utils/files";
+import { ensurePathAbsolute } from "./utils/helpers";
 
 const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 
@@ -60,18 +69,57 @@ const dummy = command({
   },
 });
 
+const cmd = command({
+  name: "my number",
+  args: {
+    myNumber: option({
+      type: string,
+      long: "my-number",
+      short: "n",
+    }),
+  },
+  handler: async ({ myNumber }) => {},
+});
+
 const dummy2 = command({
   name: "dummy command for testing",
   args: {
-    // someArg: positional({ type: string, displayName: "some arg" }),
+    workdirPath: option({
+      type: string,
+      long: "workdir",
+      description: "workdir path",
+      defaultValue: () => `${absolutePath}/.nix/tmp/installer-workdir`,
+    }),
+    instructionPath: option({
+      type: string,
+      long: "instruction",
+      description: "instruction path",
+      // defaultValue: () => `${absolutePath}/.nix/instruction_increment.tar.xz`,
+      defaultValue: () => `${absolutePath}/.nix/instruction_full.tar.xz`,
+    }),
+    storePath: option({
+      type: string,
+      long: "store",
+      description: "store path",
+      defaultValue: () => `${absolutePath}/.nix2`,
+    }),
+    clientStateStorePath: option({
+      type: string,
+      long: "clientState",
+      description: "client state path",
+      defaultValue: () => `${absolutePath}/.nix/tmp/client-state-store`,
+    }),
   },
-  handler: async ({}) => {
-    const instructionPath = `${absolutePath}/.nix/instruction_increment.tar.xz`;
-    // const instructionPath = `${absolutePath}/.nix/instruction_full.tar.xz`;
-
-    const workdirPath = `${absolutePath}/.nix/tmp/installer-workdir`;
-    const clientStateStorePath = `${absolutePath}/.nix/tmp/client-state-store`;
-    const storePath = `${absolutePath}/.nix2`;
+  handler: async ({
+    workdirPath,
+    instructionPath,
+    clientStateStorePath,
+    storePath,
+  }) => {
+    workdirPath = ensurePathAbsolute(workdirPath);
+    instructionPath = ensurePathAbsolute(instructionPath);
+    clientStateStorePath = ensurePathAbsolute(clientStateStorePath);
+    storePath = ensurePathAbsolute(storePath);
 
     // Make workdir
     await fs.promises.mkdir(workdirPath, { recursive: true });

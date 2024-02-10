@@ -13,15 +13,17 @@
           inherit system;
           overlays = [ ];
         };
+
+        fhsDeps = pkgs: with pkgs; [
+          nodejs
+          yarn
+          xz
+          gnutar
+        ];
+
         fhsUserEnv = pkgs.buildFHSEnv {
           name = "nsync-env";
-          targetPkgs = pkgs: with pkgs; [
-            nodejs
-            yarn
-            xz
-            gnutar
-            hello
-          ];
+          targetPkgs = fhsDeps;
           runScript = "bash";
         };
 
@@ -38,7 +40,7 @@
 
           installPhase = ''
             mkdir $out
-            mv deps/nix-sync/dist/main.js $out/main.js
+            mv deps/nix-sync/dist/main.js $out
           '';
 
           doFixup = false;
@@ -47,13 +49,7 @@
 
         nrun = pkgs.buildFHSEnv {
           name = "nsync-env";
-          targetPkgs = pkgs: with pkgs; [
-            nodejs
-            yarn
-            xz
-            gnutar
-            hello
-          ];
+          targetPkgs = fhsDeps;
           runScript = "node ${nrunBuiltFile}/main.js";
         };
       in
@@ -61,7 +57,8 @@
         # Devshell
         devShell = fhsUserEnv.env;
 
-        # Shells
+        # Run as package
         packages.default = nrun;
+        packages.nrun = nrun;
       });
 }
