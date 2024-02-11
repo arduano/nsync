@@ -39,7 +39,7 @@ import {
   getNarinfoFileListForNixPaths,
 } from "./utils/clientStore";
 import { getNixStoreGenerations } from "./utils/nixGenerations";
-import { getAbsoluteFilesListInDir } from "./utils/files";
+import { getAbsoluteNarinfoListInDir } from "./utils/files";
 import { ensurePathAbsolute } from "./utils/helpers";
 
 const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
@@ -144,11 +144,9 @@ const dummy2 = command({
     // Copy all the narinfo files into the archive
     const archivePath = path.join(workdirPath, instruction.item.archivePath);
 
-    const existingNarinfoFilePaths = await getAbsoluteFilesListInDir(
+    const existingNarinfoFilePaths = await getAbsoluteNarinfoListInDir(
       archivePath
     );
-
-    existingNarinfoFilePaths.forEach((p) => console.log(p));
 
     const narinfoFiles = await getNarinfoFileListForNixPaths({
       storePath: storePath == "/" ? undefined : storePath,

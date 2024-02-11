@@ -23,10 +23,10 @@ export async function getAbsoluteFilteredItemsListInDir(
 /**
  * Gets the list of absolute paths of all the files in a directory. Child directories are not included.
  */
-export async function getAbsoluteFilesListInDir(dir: string) {
+export async function getAbsoluteNarinfoListInDir(dir: string) {
   return getAbsoluteFilteredItemsListInDir(dir, async (file) => {
     const fullPath = path.join(dir, file);
     const stat = await fs.promises.stat(fullPath);
-    return stat.isFile();
+    return stat.isFile() && file.endsWith(".narinfo");
   });
 }
