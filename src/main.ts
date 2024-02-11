@@ -149,7 +149,7 @@ const dummy2 = command({
     );
 
     const narinfoFiles = await getNarinfoFileListForNixPaths({
-      storePath: storePath,
+      storePath: storePath == "/" ? undefined : storePath,
       clientStateStorePath: clientStateStorePath,
       nixPaths: instruction.deltaDependencies.map((d) => d.nixPath),
     });
@@ -168,7 +168,7 @@ const dummy2 = command({
     await copyArchiveToStore({
       archivePath,
       item: instruction.item.itemPath,
-      storePath,
+      storePath: storePath == "/" ? undefined : storePath,
     });
 
     console.log("Updating local config");

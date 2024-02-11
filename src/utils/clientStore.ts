@@ -99,7 +99,7 @@ export async function saveClientStoreConfig({
 }
 
 type GetNarinfoFileListForRevisionsArgs = {
-  storePath: string;
+  storePath?: string;
   clientStateStorePath: string;
   nixPaths: string[];
 };
@@ -113,11 +113,6 @@ export async function getNarinfoFileListForNixPaths({
   clientStateStorePath,
   nixPaths,
 }: GetNarinfoFileListForRevisionsArgs) {
-  const clientStateConfig = await readClientStoreConfig({
-    clientStateStorePath,
-    storePath,
-  });
-
   const pathInfos = await getPathInfoTreeSearch({
     rootPathNames: nixPaths,
     storePath,
