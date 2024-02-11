@@ -13,7 +13,7 @@ export async function getAbsoluteFilteredItemsListInDir(
   const filteredFiles = await Promise.all(
     files.map(async (file) => {
       const fullPath = path.join(dir, file);
-      return filter(file) ? fullPath : null;
+      return (await filter(file)) ? fullPath : null;
     })
   );
 
