@@ -148,6 +148,8 @@ const dummy2 = command({
       archivePath
     );
 
+    existingNarinfoFilePaths.forEach((p) => console.log(p));
+
     const narinfoFiles = await getNarinfoFileListForNixPaths({
       storePath: storePath == "/" ? undefined : storePath,
       clientStateStorePath: clientStateStorePath,
