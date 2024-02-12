@@ -114,7 +114,9 @@ export async function makeNewSystemGeneration({
   let newGenerationPathPrefix = path.join(storePath, systemProfilesPrefix);
   let newGenerationLinkPath = newGenerationPathPrefix + newGenerationLinkName;
 
-  await fs.promises.symlink(nixItemPath, newGenerationLinkPath);
+  // Use the ln command rather than nodejs's filesystem API because otherwise node
+  // complains that it's a read-only filesystem
+  await execa(`ln -s ${nixItemPath} ${newGenerationLinkPath}`);
 
   if (executeActivation) {
     await execa(
