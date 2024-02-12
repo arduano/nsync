@@ -170,11 +170,13 @@ const dummy2 = command({
       try {
         let storePath =
           getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
+        console.log(storePath);
         await getPathInfo({
           storePath,
           pathName: dependentPath,
         });
       } catch (e) {
+        console.log(e);
         console.error(
           "Failed to execute instruction because a dependent derivation is missing in the client state store"
         );
