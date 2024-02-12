@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { exists } from "./helpers";
-import { execa } from "execa";
+import { execa, execaCommand } from "execa";
 
 export async function getNixStoreGenerations(profilePrefix: string) {
   const folderName = path.dirname(profilePrefix);
@@ -116,7 +116,7 @@ export async function makeNewSystemGeneration({
 
   // Use the ln command rather than nodejs's filesystem API because otherwise node
   // complains that it's a read-only filesystem
-  await execa(`ln -s ${nixItemPath} ${newGenerationLinkPath}`);
+  await execaCommand(`ln -s ${nixItemPath} ${newGenerationLinkPath}`);
 
   if (executeActivation) {
     await execa(
