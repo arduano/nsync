@@ -153,7 +153,7 @@ const dummy2 = command({
 
     // Ensure that all the dependent nix paths are in both the store and the client state store
     let dependentNixPaths = instruction.deltaDependencies.map((d) => d.nixPath);
-    for (let dependentPath in dependentNixPaths) {
+    for (let dependentPath of dependentNixPaths) {
       try {
         await getPathInfo({
           storePath: storePath == "/" ? undefined : storePath,
