@@ -47,11 +47,12 @@
           distPhase = "true"; # There seems to be no other way to disable it. This just disables it.
         };
 
-        nrun = pkgs.buildFHSEnv {
-          name = "nsync-env";
-          targetPkgs = fhsDeps;
-          runScript = "node ${nrunBuiltFile}/main.js";
-        };
+        # Build a PATH variable for all deps
+        path = pkgs.lib.makeBinPath (fhsDeps pkgs);
+
+        nrun = pkgs.writeShellScriptBin "nrun" ''
+          PATH=${path} node ${nrunBuiltFile}/main.js
+        '';
       in
       {
         # Devshell
