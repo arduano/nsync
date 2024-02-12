@@ -119,7 +119,7 @@ export async function makeNewSystemGeneration({
   await execaCommand(`ln -s ${nixItemPath} ${newGenerationLinkPath}`);
 
   if (executeActivation) {
-    await execa(
+    await execaCommand(
       `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`
     );
 
@@ -127,7 +127,7 @@ export async function makeNewSystemGeneration({
       newGenerationPathPrefix,
       "bin/switch-to-configuration"
     );
-    await execa(`${activationCommand} ${executeActivation}`, {
+    await execaCommand(`${activationCommand} ${executeActivation}`, {
       env: {
         NIXOS_INSTALL_BOOTLOADER: "1",
       },
