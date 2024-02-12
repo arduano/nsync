@@ -52,7 +52,9 @@ export async function getPathInfo({
   pathName,
 }: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
   const storeArg = storePath ? `--store ${storePath}` : "";
-  const result = await $`nix path-info --json ${storeArg} ${pathName}`;
+  const result = await execaCommand(
+    `nix path-info --json ${storeArg} ${pathName}`
+  );
   if (result.failed) {
     throw new Error(result.stderr);
   }
