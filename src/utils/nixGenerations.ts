@@ -116,18 +116,18 @@ export async function makeNewSystemGeneration({
 
   // Use the ln command rather than nodejs's filesystem API because otherwise node
   // complains that it's a read-only filesystem
-  await execaCommand(`ln -s ${nixItemPath} ${newGenerationLinkPath}`);
+  await execaCommand(`sudo ln -s ${nixItemPath} ${newGenerationLinkPath}`);
 
   if (executeActivation) {
     await execaCommand(
-      `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`
+      `sudo nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`
     );
 
     let activationCommand = path.join(
       newGenerationPathPrefix,
       "bin/switch-to-configuration"
     );
-    await execaCommand(`${activationCommand} ${executeActivation}`, {
+    await execaCommand(`sudo ${activationCommand} ${executeActivation}`, {
       env: {
         NIXOS_INSTALL_BOOTLOADER: "1",
       },
