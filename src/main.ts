@@ -36,6 +36,7 @@ import fs from "fs";
 import { buildSystemUpdateInstruction } from "./utils/operations";
 import {
   copyNarinfoFilesToCache,
+  getClientStoreNarinfoCachePathAsStorePath,
   getNarinfoFileListForNixPaths,
 } from "./utils/clientStore";
 import {
@@ -51,9 +52,12 @@ const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 // Python+opencv = 1fe3947a35dd67dcc1ca1fd813070c8fb7b19b8d
 // Python = e61616302545726f0f429a45d166d1cd794357ac
 
+// Base 2 = bb60c1fc88e454cceed98ec3af0e0750481536b5
+// Base 2 with `hello` = f76088a37336f3226065a6405b81494b06eced20
+
 // const pastRevs = ["5e93f72a2a85affa0eb4f6106b00b08c75c93475"];
 const pastRevs: string[] = ["bb60c1fc88e454cceed98ec3af0e0750481536b5"];
-const newRev = "f76088a37336f3226065a6405b81494b06eced20";
+const newRev = "bb60c1fc88e454cceed98ec3af0e0750481536b5";
 const hostname = "testvm";
 
 const dummy = command({
@@ -145,6 +149,38 @@ const dummy2 = command({
 
     if (instruction.kind !== "switch") {
       throw new Error("Invalid instruction kind");
+    }
+
+    // Ensure that all the dependent nix paths are in both the store and the client state store
+    let dependentNixPaths = instruction.deltaDependencies.map((d) => d.nixPath);
+    for (let dependentPath in dependentNixPaths) {
+      try {
+        await getPathInfo({
+          storePath: storePath == "/" ? undefined : storePath,
+          pathName: dependentPath,
+        });
+      } catch (e) {
+        console.error(
+          "Failed to execute instruction because a dependent derivation is missing in the nix store"
+        );
+        console.error("Dependent path: " + dependentPath);
+        return 1;
+      }
+
+      try {
+        let storePath =
+          getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
+        await getPathInfo({
+          storePath,
+          pathName: dependentPath,
+        });
+      } catch (e) {
+        console.error(
+          "Failed to execute instruction because a dependent derivation is missing in the client state store"
+        );
+        console.error("Dependent path: " + dependentPath);
+        return 1;
+      }
     }
 
     await assertInstructionDirValid(workdirPath);

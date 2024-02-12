@@ -93,6 +93,9 @@ type MakeNewSystemGenerationArgs = {
   executeActivation?: "switch" | "boot";
 };
 
+/**
+ * Creates a new system generation for the current nix store, and optionally activates it.
+ */
 export async function makeNewSystemGeneration({
   storePath,
   nixItemPath,
@@ -131,4 +134,47 @@ export async function makeNewSystemGeneration({
       },
     });
   }
+}
+
+type CleanupOldGenerationsArgs = {
+  storePath: string;
+  keepGenerationCount: number;
+};
+
+/**
+ * Cleans up old generations of the nix store, keeping only the last `keepGenerationCount` generations.
+ * Also, current generations can't be deleted either.
+ */
+export async function cleanupOldGenerations({
+  storePath,
+  keepGenerationCount,
+}: CleanupOldGenerationsArgs) {
+  let generationData = await getNixStoreSystemGenerations({ storePath });
+  if (!generationData || !generationData.currentGeneration) {
+    // If it fails to fetch generations, or the current generation, then skip
+    return;
+  }
+
+  let generations = generationData.generations;
+  let currentGeneration = generationData.currentGeneration;
+
+  // Sort by generation number
+  generations.sort((a, b) => a.generation - b.generation);
+
+  // Delete all generations from 0 to N-keepGenerationCount
+  let generationsToDelete = generations.slice(
+    0,
+    generations.length - keepGenerationCount
+  );
+
+  for (let generation of generationsToDelete) {
+    if (generation.generation === currentGeneration.generation) {
+      continue;
+    }
+
+    await fs.promises.unlink(generation.linkPath);
+  }
+
+  // Run gc
+  await execaCommand("nix store gc");
 }

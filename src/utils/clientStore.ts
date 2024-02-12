@@ -3,12 +3,19 @@ import fs from "fs";
 import { z } from "zod";
 import { getPathHashFromPath, getPathInfoTreeSearch } from "./nixStore";
 
-export async function getClientStateNarinfoCachePath(clientStatePath: string) {
+export function getClientStateNarinfoCachePath(clientStatePath: string) {
   return path.join(clientStatePath, "narinfo-cache");
 }
 
-export async function getClientStateDataFilePath(clientStatePath: string) {
+export function getClientStateDataFilePath(clientStatePath: string) {
   return path.join(clientStatePath, "state.json");
+}
+
+export function getClientStoreNarinfoCachePathAsStorePath(
+  clientStatePath: string
+) {
+  let cacheFolder = getClientStateNarinfoCachePath(clientStatePath);
+  return `file://${cacheFolder}`;
 }
 
 const clientStateForSingleStoreConfig = z.object({

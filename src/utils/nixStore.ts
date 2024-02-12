@@ -40,7 +40,7 @@ function mapParsedPathInfoToRelevantPathInfo(
 }
 
 type GetPathInfoArgs = {
-  storePath: string;
+  storePath?: string;
   pathName: string;
 };
 
@@ -50,8 +50,9 @@ type GetPathInfoArgs = {
 export async function getPathInfo({
   storePath,
   pathName,
-}: GetPathInfoArgs): Promise<RelevantNixPathInfo> {
-  const result = await $`nix path-info --json --store ${storePath} ${pathName}`;
+}: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
+  const storeArg = storePath ? `--store ${storePath}` : "";
+  const result = await $`nix path-info --json --store ${storeArg} ${pathName}`;
   if (result.failed) {
     throw new Error(result.stderr);
   }
@@ -78,7 +79,9 @@ export async function getPathsInfo({
   pathNames,
 }: GetPathsInfoArgs): Promise<Record<string, RelevantNixPathInfo>> {
   const storeArg = storePath ? `--store ${storePath}` : "";
-  const result = await execaCommand(`nix path-info --json ${storeArg} ${pathNames.join(' ')}`);
+  const result = await execaCommand(
+    `nix path-info --json ${storeArg} ${pathNames.join(" ")}`
+  );
   if (result.failed) {
     throw new Error(result.stderr);
   }
