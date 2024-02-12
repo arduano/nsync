@@ -159,7 +159,9 @@ const dummy2 = command({
           storePath: storePath == "/" ? undefined : storePath,
           pathName: dependentPath,
         });
+        console.log(storePath);
       } catch (e) {
+        console.log(e);
         console.error(
           "Failed to execute instruction because a dependent derivation is missing in the nix store"
         );
@@ -170,13 +172,11 @@ const dummy2 = command({
       try {
         let storePath =
           getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
-        console.log(storePath);
         await getPathInfo({
           storePath,
           pathName: dependentPath,
         });
       } catch (e) {
-        console.log(e);
         console.error(
           "Failed to execute instruction because a dependent derivation is missing in the client state store"
         );
