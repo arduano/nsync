@@ -51,7 +51,7 @@
         path = pkgs.lib.makeBinPath (fhsDeps pkgs);
 
         nrun = pkgs.writeShellScriptBin "nrun" ''
-          PATH=${path} node ${nrunBuiltFile}/main.js
+          PATH=${path} node ${nrunBuiltFile}/main.js $@
         '';
       in
       {
