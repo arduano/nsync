@@ -38,7 +38,10 @@ import {
   copyNarinfoFilesToCache,
   getNarinfoFileListForNixPaths,
 } from "./utils/clientStore";
-import { getNixStoreGenerations } from "./utils/nixGenerations";
+import {
+  getNixStoreGenerations,
+  makeNewSystemGeneration,
+} from "./utils/nixGenerations";
 import { getAbsoluteNarinfoListInDir } from "./utils/files";
 import { ensurePathAbsolute } from "./utils/helpers";
 
@@ -109,12 +112,17 @@ const dummy2 = command({
       description: "client state path",
       defaultValue: () => `${absolutePath}/.nix/tmp/client-state-store`,
     }),
+    addGeneration: flag({
+      long: "add-gen",
+      description: "Add a generation to the store with the new system build",
+    }),
   },
   handler: async ({
     workdirPath,
     instructionPath,
     clientStateStorePath,
     storePath,
+    addGeneration,
   }) => {
     workdirPath = ensurePathAbsolute(workdirPath);
     instructionPath = ensurePathAbsolute(instructionPath);
@@ -176,6 +184,14 @@ const dummy2 = command({
     await copyNarinfoFilesToCache({
       clientStateStorePath,
       narinfoFilePaths: existingNarinfoFilePaths,
+    });
+
+    console.log("Updating system generations");
+
+    await makeNewSystemGeneration({
+      storePath,
+      nixItemPath: instruction.item.itemPath,
+      executeActivation: addGeneration ? "switch" : undefined,
     });
 
     console.log("Cleaning up");
