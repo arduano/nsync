@@ -67,6 +67,26 @@ export async function getPathInfo({
   return mapParsedPathInfoToRelevantPathInfo(parsed.data[0]);
 }
 
+type DoesNixPathExistArgs = {
+  storePath?: string;
+  pathName: string;
+};
+
+/**
+ * Given a store path and an item path name, check if the path exists.
+ */
+export async function doesNixPathExist({
+  storePath,
+  pathName,
+}: DoesNixPathExistArgs): Promise<boolean> {
+  try {
+    await getPathInfo({ storePath, pathName });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 type GetPathsInfoArgs = {
   storePath?: string;
   pathNames: string[];
@@ -80,6 +100,10 @@ export async function getPathsInfo({
   storePath,
   pathNames,
 }: GetPathsInfoArgs): Promise<Record<string, RelevantNixPathInfo>> {
+  if (pathNames.length === 0) {
+    return {};
+  }
+
   const storeArg = storePath ? `--store ${storePath}` : "";
   const result = await execaCommand(
     `nix path-info --json ${storeArg} ${pathNames.join(" ")}`

@@ -2,18 +2,19 @@ import { $, execaCommand } from "execa";
 import { z } from "zod";
 
 type GetFlakeExportsArgs = {
-  absolutePath: string;
+  flakeGitUri: string;
   rev?: string;
 };
 
 /**
  * Given a path and a revision, get the `nix flake show` result of the flake, which generally shows all the flake exports.
  */
-export async function getFlakeInfo({ absolutePath, rev }: GetFlakeExportsArgs) {
-  let gitUrl = `git+file://${absolutePath}`;
+export async function getFlakeInfo({ flakeGitUri, rev }: GetFlakeExportsArgs) {
   let revArg = rev ? `?rev=${rev}` : "";
 
-  const result = await $`nix flake show --json ${gitUrl}${revArg}`;
+  const result = await execaCommand(
+    `nix flake show --json ${flakeGitUri}${revArg}`
+  );
   if (result.failed) {
     throw new Error(result.stderr);
   }
@@ -26,7 +27,7 @@ export async function getFlakeInfo({ absolutePath, rev }: GetFlakeExportsArgs) {
 }
 
 type GetFlakeHostnamesArgs = {
-  absolutePath: string;
+  flakeGitUri: string;
   rev?: string;
 };
 
@@ -38,10 +39,10 @@ const configurationsSchema = z.object({
  * Given a path and a revision, get the hostnames of the flake.
  */
 export async function getFlakeHostnames({
-  absolutePath,
+  flakeGitUri,
   rev,
 }: GetFlakeHostnamesArgs) {
-  const flakeInfo = await getFlakeInfo({ absolutePath, rev });
+  const flakeInfo = await getFlakeInfo({ flakeGitUri, rev });
   const parsed = configurationsSchema.safeParse(flakeInfo);
   if (!parsed.success) {
     throw new Error(parsed.error.message);
@@ -89,7 +90,7 @@ export async function checkFlakeDirty({ absolutePath }: CheckFlakeDirtyArgs) {
 }
 
 type BuildFlakeArgs = {
-  flakeAbsolutePath: string;
+  flakeGitUri: string;
   storeAbsolutePath: string;
   hostname: string;
   rev?: string;
@@ -111,12 +112,12 @@ const flakeBuildCommandResult = z
  * If rev is not provided, it defaults to the current revision.
  */
 export async function buildSystemFlake({
-  flakeAbsolutePath: absolutePath,
+  flakeGitUri,
   hostname,
   rev,
   storeAbsolutePath: buildPath,
 }: BuildFlakeArgs) {
-  let hostnames = await getFlakeHostnames({ absolutePath, rev });
+  let hostnames = await getFlakeHostnames({ flakeGitUri, rev });
 
   if (!hostnames.includes(hostname)) {
     throw new Error(
@@ -127,12 +128,11 @@ export async function buildSystemFlake({
   }
 
   const nixStoreRoot = buildPath;
-  const gitUrl = `git+file://${absolutePath}`;
   const revArg = rev ? `?rev=${rev}` : "";
   const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
 
   const command = execaCommand(
-    `nix build --json --no-link --store ${nixStoreRoot} ${gitUrl}${revArg}#${attr}`,
+    `nix build --json --no-link --store ${nixStoreRoot} ${flakeGitUri}${revArg}#${attr}`,
     {
       stderr: "inherit",
     }
