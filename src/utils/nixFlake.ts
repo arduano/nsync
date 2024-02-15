@@ -1,6 +1,34 @@
 import { $, execaCommand } from "execa";
 import { z } from "zod";
 
+type GetFlakeRevisionFromRefArgs = {
+  flakeGitUri: string;
+  ref?: string;
+};
+
+/**
+ * Given a path and a git ref, get the git revision of the flake.
+ */
+export async function getRevisionFromRef({
+  flakeGitUri,
+  ref,
+}: GetFlakeRevisionFromRefArgs) {
+  let refArg = ref ? `?ref=${ref}` : "";
+
+  const result = await execaCommand(
+    `nix flake info --json ${flakeGitUri}${refArg}`
+  );
+  if (result.failed) {
+    throw new Error(result.stderr);
+  }
+
+  try {
+    return JSON.parse(result.stdout).revision as string;
+  } catch (e) {
+    throw new Error(`Failed to parse flake info JSON: ${result.stdout}`);
+  }
+}
+
 type GetFlakeExportsArgs = {
   flakeGitUri: string;
   rev?: string;
@@ -93,7 +121,7 @@ type BuildFlakeArgs = {
   flakeGitUri: string;
   storeAbsolutePath: string;
   hostname: string;
-  rev?: string;
+  ref?: string;
 };
 
 const flakeBuildCommandResult = z
@@ -114,10 +142,12 @@ const flakeBuildCommandResult = z
 export async function buildSystemFlake({
   flakeGitUri,
   hostname,
-  rev,
+  ref,
   storeAbsolutePath: buildPath,
 }: BuildFlakeArgs) {
-  let hostnames = await getFlakeHostnames({ flakeGitUri, rev });
+  const gitRev = await getRevisionFromRef({ flakeGitUri, ref });
+
+  let hostnames = await getFlakeHostnames({ flakeGitUri, rev: gitRev });
 
   if (!hostnames.includes(hostname)) {
     throw new Error(
@@ -128,11 +158,10 @@ export async function buildSystemFlake({
   }
 
   const nixStoreRoot = buildPath;
-  const revArg = rev ? `?rev=${rev}` : "";
   const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
 
   const command = execaCommand(
-    `nix build --json --no-link --store ${nixStoreRoot} ${flakeGitUri}${revArg}#${attr}`,
+    `nix build --json --no-link --store ${nixStoreRoot} ${flakeGitUri}?rev=${gitRev}#${attr}`,
     {
       stderr: "inherit",
     }
@@ -153,6 +182,7 @@ export async function buildSystemFlake({
     const parsed = {
       derivation: parsedResult[0].drvPath,
       output: parsedResult[0].outputs.out,
+      gitRevision: gitRev,
     };
 
     return parsed;

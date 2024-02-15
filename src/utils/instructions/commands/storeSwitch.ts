@@ -19,28 +19,28 @@ type BuildStoreSwitchCommandArgs = {
   kind: "switch";
   flakeGitUri: string;
   hostname: string;
-  rev: string;
+  ref: string;
   mode: "immediate" | "next-reboot";
 };
 
 async function buildStoreSwitchCommand(
-  { kind, flakeGitUri, hostname, rev, mode }: BuildStoreSwitchCommandArgs,
+  { kind, flakeGitUri, hostname, ref, mode }: BuildStoreSwitchCommandArgs,
   { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs
 ): Promise<z.infer<typeof storeSwitchCommandSchema>> {
   progressCallback("Building switch command");
 
-  const newRevBuildInfo = await buildSystemFlake({
+  const buildInfo = await buildSystemFlake({
     flakeGitUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
-    rev,
+    ref: ref,
   });
 
   return {
     kind,
     item: {
-      nixPath: newRevBuildInfo.output,
-      gitRevision: rev,
+      nixPath: buildInfo.output,
+      gitRevision: buildInfo.gitRevision,
     },
     mode,
   };

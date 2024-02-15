@@ -40,7 +40,7 @@ export async function buildSystemUpdateInstruction({
       flakeAbsolutePath: flakePath,
       hostname,
       storeAbsolutePath: nixStorePath,
-      rev,
+      ref: rev,
     });
 
     oldRevBuildInfos.push({
@@ -54,7 +54,7 @@ export async function buildSystemUpdateInstruction({
     flakeAbsolutePath: flakePath,
     hostname,
     storeAbsolutePath: nixStorePath,
-    rev: newRev,
+    ref: newRev,
   });
 
   console.log("Copying to archive");

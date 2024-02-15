@@ -42,9 +42,9 @@ type BuildLoadArchiveDeltaCommandArgs = {
   flakeGitUri: string;
   hostname: string;
   archiveFolderName: string;
-  deltaDependencyRevs: string[];
+  deltaDependencyRefs: string[];
   partialNarinfos: boolean;
-  newRev: string;
+  newRef: string;
 };
 
 async function buildLoadArchiveDeltaCommand(
@@ -53,9 +53,9 @@ async function buildLoadArchiveDeltaCommand(
     archiveFolderName,
     flakeGitUri,
     hostname,
-    deltaDependencyRevs,
+    deltaDependencyRefs,
     partialNarinfos,
-    newRev,
+    newRef: newRev,
   }: BuildLoadArchiveDeltaCommandArgs,
   {
     instructionFolderPath,
@@ -68,17 +68,17 @@ async function buildLoadArchiveDeltaCommand(
 
   type BuildInfo = FlakeBuildResult & { rev: string };
   const oldRevBuildInfos: BuildInfo[] = [];
-  for (const rev of deltaDependencyRevs) {
-    progressCallback(`Building revision ${rev}`);
+  for (const ref of deltaDependencyRefs) {
+    progressCallback(`Building revision ${ref}`);
     const info = await buildSystemFlake({
       flakeGitUri,
       hostname,
       storeAbsolutePath: workdirStorePath,
-      rev,
+      ref,
     });
 
     oldRevBuildInfos.push({
-      rev,
+      rev: info.gitRevision,
       ...info,
     });
   }
@@ -88,7 +88,7 @@ async function buildLoadArchiveDeltaCommand(
     flakeGitUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
-    rev: newRev,
+    ref: newRev,
   });
 
   progressCallback("Copying to archive");
@@ -138,7 +138,7 @@ async function buildLoadArchiveDeltaCommand(
       nixPath: build.output,
     })),
     item: {
-      gitRevision: newRev,
+      gitRevision: newRevBuildInfo.gitRevision,
       nixPath: newRevBuildInfo.output,
     },
     partialNarinfos,

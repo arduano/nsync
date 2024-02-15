@@ -4,6 +4,7 @@ import {
   InstructionExecutionSharedArgs,
 } from "../schemas";
 import { execaCommand } from "execa";
+import fs from "fs";
 
 const rebootCommandSchema = z.object({
   // Command to trigger a reboot
@@ -32,6 +33,9 @@ async function executeRebootCommand(
   args: z.infer<typeof rebootCommandSchema>,
   shared: InstructionExecutionSharedArgs
 ): Promise<void> {
+  // Delete the instruction workdir as it won't be needed after the reboot
+  await fs.promises.rmdir(shared.instructionFolderPath, { recursive: true });
+
   if (args.delay) {
     await new Promise((resolve) => setTimeout(resolve, args.delay! * 1000));
   }

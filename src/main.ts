@@ -44,6 +44,7 @@ import {
 import { getAbsoluteNarinfoListInDir } from "./utils/files";
 import { ensurePathAbsolute } from "./utils/helpers";
 import {
+  BuildCommandArgs,
   buildInstructionFolder,
   executeInstructionFolder,
 } from "./utils/instructions/common";
@@ -72,48 +73,48 @@ const dummy = command({
     // someArg: positional({ type: string, displayName: "some arg" }),
   },
   handler: async ({}) => {
-    // await buildSystemUpdateInstruction({
-    //   destinationPath: `${absolutePath}/.nix/instruction.tar.xz`,
-    //   hostname,
-    //   pastRevs,
-    //   newRev,
-    //   nixFlakeAbsolutePath: absolutePath,
-    // });
+    const reboot = false;
 
-    let flakeGitUri = `git+file://${absolutePath}`;
+    // let flakeGitUri = `git+file://${absolutePath}`;
+    let flakeGitUri = `github:arduano/test-vm-nix`;
 
     const workdirStorePath = `${absolutePath}/.nix`;
     const workdirArchivePath = `${absolutePath}/.nix/archive`;
     const instructionFolderPath = `${absolutePath}/.nix/tmp/instruction_workdir`;
 
-    await buildInstructionFolder(
-      [
-        {
-          kind: "load",
-          archiveFolderName: "archive",
-          deltaDependencyRevs: pastRevs,
-          partialNarinfos: true,
-          newRev,
-          hostname,
-          flakeGitUri,
-        },
-        {
-          kind: "switch",
-          mode: "immediate",
-          flakeGitUri,
-          hostname,
-          rev: newRev,
-        },
-      ],
-      {
-        instructionFolderPath,
-        workdirStorePath,
-        workdirArchivePath,
-        progressCallback: (progress) => {
-          console.log(progress);
-        },
-      }
-    );
+    const buildArgs: BuildCommandArgs[] = [];
+    buildArgs.push({
+      kind: "load",
+      archiveFolderName: "archive",
+      deltaDependencyRefs: pastRevs,
+      partialNarinfos: true,
+      newRef: newRev,
+      hostname,
+      flakeGitUri,
+    });
+    buildArgs.push({
+      kind: "switch",
+      mode: "immediate",
+      flakeGitUri,
+      hostname,
+      ref: newRev,
+    });
+
+    if (reboot) {
+      buildArgs.push({
+        kind: "reboot",
+        delay: 5,
+      });
+    }
+
+    await buildInstructionFolder(buildArgs, {
+      instructionFolderPath,
+      workdirStorePath,
+      workdirArchivePath,
+      progressCallback: (progress) => {
+        console.log(progress);
+      },
+    });
 
     await compressInstructionDir({
       destinationPath: `${absolutePath}/.nix/instruction_increment.tar.xz`,
