@@ -1,7 +1,11 @@
 import { z } from "zod";
-import { CommandImplementation } from "../common";
+import {
+  CommandImplementation,
+  InstructionExecutionSharedArgs,
+} from "../schemas";
+import { cleanupOldGenerations } from "../../nixGenerations";
 
-export const storeCleanupCommandSchema = z.object({
+const storeCleanupCommandSchema = z.object({
   // Command to "clean up the nix store"
   kind: z.literal("cleanup"),
 
@@ -9,12 +13,12 @@ export const storeCleanupCommandSchema = z.object({
   generationsToKeep: z.number().int().positive(),
 });
 
-export type BuildStoreCleanupCommandArgs = {
+type BuildStoreCleanupCommandArgs = {
   kind: "cleanup";
   generationsToKeep: number;
 };
 
-export async function buildStoreCleanupCommand({
+async function buildStoreCleanupCommand({
   kind,
   generationsToKeep,
 }: BuildStoreCleanupCommandArgs): Promise<
@@ -26,10 +30,21 @@ export async function buildStoreCleanupCommand({
   };
 }
 
+async function executeStoreCleanupCommand(
+  args: z.infer<typeof storeCleanupCommandSchema>,
+  shared: InstructionExecutionSharedArgs
+): Promise<void> {
+  await cleanupOldGenerations({
+    keepGenerationCount: args.generationsToKeep,
+    storePath: "/",
+  });
+}
+
 export const storeCleanupCommand = {
   kind: "cleanup" as const,
   schema: storeCleanupCommandSchema,
   build: buildStoreCleanupCommand,
+  execute: executeStoreCleanupCommand,
 } satisfies CommandImplementation<
   BuildStoreCleanupCommandArgs,
   typeof storeCleanupCommandSchema

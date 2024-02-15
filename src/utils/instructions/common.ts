@@ -1,53 +1,25 @@
 import { z } from "zod";
-import { doesNixPathExist, getStoreDeltaPathsDelta } from "../nixStore";
+import { doesNixPathExist } from "../nixStore";
 import { getClientStoreNarinfoCachePathAsStorePath } from "../clientStore";
-import { FlakeBuildResult, buildSystemFlake } from "../nixFlake";
-import { copyOutputToArchive, makeArchiveSubset } from "../nixArchive";
 import path from "path";
 import fs from "fs";
-import { execaCommand } from "execa";
-import {
-  BuildLoadArchiveDeltaCommandArgs,
-  buildLoadArchiveDeltaCommand,
-  loadArchiveDeltaCommand,
-  loadArchiveDeltaCommandSchema,
-} from "./commands/loadArchive";
-import {
-  BuildStoreSwitchCommandArgs,
-  buildStoreSwitchCommand,
-  storeSwitchCommand,
-  storeSwitchCommandSchema,
-} from "./commands/storeSwitch";
-import {
-  BuildStoreCleanupCommandArgs,
-  buildStoreCleanupCommand,
-  storeCleanupCommand,
-  storeCleanupCommandSchema,
-} from "./commands/storeCleanup";
-import {
-  BuildRebootCommandArgs,
-  buildRebootCommand,
-  rebootCommand,
-  rebootCommandSchema,
-} from "./commands/reboot";
+import { loadArchiveDeltaCommand } from "./commands/loadArchive";
+import { storeSwitchCommand } from "./commands/storeSwitch";
+import { storeCleanupCommand } from "./commands/storeCleanup";
+import { rebootCommand } from "./commands/reboot";
 import { mapTuple, unreachable } from "../helpers";
+import {
+  CommandImplementation,
+  InstructionBuilderSharedArgs,
+  InstructionExecutionSharedArgs,
+} from "./schemas";
 
-export const storeRoot = z.object({
-  nixPath: z.string(),
-  gitRevision: z.string(),
-});
-
-export interface CommandImplementation<
-  Args extends object,
-  Schema extends z.ZodObject<any>
-> {
-  kind: string;
-  schema: Schema;
-  build: (
-    args: Args,
-    shared: InstructionBuilderSharedArgs
-  ) => Promise<z.infer<z.ZodObject<any>>>;
-}
+const commandList = [
+  loadArchiveDeltaCommand,
+  storeSwitchCommand,
+  storeCleanupCommand,
+  rebootCommand,
+] as const;
 
 type CommandImplementationArgs<T> = T extends CommandImplementation<
   infer Args,
@@ -56,19 +28,6 @@ type CommandImplementationArgs<T> = T extends CommandImplementation<
   ? Args
   : never;
 
-type CommandImplementationSchema<T> = T extends CommandImplementation<
-  any,
-  infer Schema
->
-  ? Schema
-  : never;
-
-const commandList = [
-  loadArchiveDeltaCommand,
-  storeSwitchCommand,
-  storeCleanupCommand,
-  rebootCommand,
-] as const;
 type Command = (typeof commandList)[number];
 
 export type BuildCommandArgs = CommandImplementationArgs<Command>;
@@ -80,18 +39,6 @@ const instructionSchema = z.array(instructionCommand);
 
 type Instruction = z.infer<typeof instructionSchema>;
 type InstructionCommand = z.infer<typeof instructionCommand>;
-
-export type InstructionBuilderSharedArgs = {
-  // The store and archive to temporarily write to when building
-  workdirStorePath: string;
-  workdirArchivePath: string;
-
-  // Path to the instruction folder that's currently being built
-  instructionFolderPath: string;
-
-  // Progress callback for CLI
-  progressCallback: (message: string) => void;
-};
 
 type AssertInstructionCanBeAppliedArgs = {
   storePath?: string;
@@ -219,8 +166,8 @@ export async function buildInstructionFolder(
   }
 
   // Verify that the instruction matches the schema, for sanity checking
-  instructionSchema.safeParse(commands);
-  if (instructionSchema.safeParse(commands).success === false) {
+  const parsed = instructionSchema.safeParse(commands);
+  if (parsed.success === false) {
     throw new Error(
       `Failed to build instruction because it doesn't match the schema. This is a bug.`
     );
@@ -230,6 +177,35 @@ export async function buildInstructionFolder(
   const instructionPath = path.join(instructionFolderPath, "instruction.json");
   await fs.promises.writeFile(
     instructionPath,
-    JSON.stringify(instructionSchema.parse(commands), null, 2)
+    JSON.stringify(commands, null, 2)
   );
+}
+
+export async function executeInstructionFolder(
+  shared: InstructionExecutionSharedArgs
+) {
+  const instructionFile = path.join(
+    shared.instructionFolderPath,
+    "instruction.json"
+  );
+
+  const instructionText = await fs.promises.readFile(instructionFile, "utf-8");
+  const instruction = instructionSchema.parse(JSON.parse(instructionText));
+
+  // Assert that the instruction can be applied
+  const error = await assertInstructionCanBeApplied({
+    storePath: shared.storePath,
+    clientStateStorePath: shared.clientStateStorePath,
+    instruction,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  // Execute the instruction
+  for (const command of instruction) {
+    const impl = commandList.find((c) => c.kind === command.kind)!;
+    await impl.execute(command as any, shared);
+  }
 }

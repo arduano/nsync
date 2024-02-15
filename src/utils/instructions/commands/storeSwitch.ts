@@ -4,16 +4,18 @@ import {
   storeRoot,
   InstructionBuilderSharedArgs,
   CommandImplementation,
-} from "../common";
+  InstructionExecutionSharedArgs,
+} from "../schemas";
+import { makeNewSystemGeneration } from "../../nixGenerations";
 
-export const storeSwitchCommandSchema = z.object({
+const storeSwitchCommandSchema = z.object({
   // Command to "apply the nix package as the next generation and switch to it"
   kind: z.literal("switch"),
   item: storeRoot,
   mode: z.union([z.literal("immediate"), z.literal("next-reboot")]),
 });
 
-export type BuildStoreSwitchCommandArgs = {
+type BuildStoreSwitchCommandArgs = {
   kind: "switch";
   flakeGitUri: string;
   hostname: string;
@@ -21,7 +23,7 @@ export type BuildStoreSwitchCommandArgs = {
   mode: "immediate" | "next-reboot";
 };
 
-export async function buildStoreSwitchCommand(
+async function buildStoreSwitchCommand(
   { kind, flakeGitUri, hostname, rev, mode }: BuildStoreSwitchCommandArgs,
   { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs
 ): Promise<z.infer<typeof storeSwitchCommandSchema>> {
@@ -44,10 +46,22 @@ export async function buildStoreSwitchCommand(
   };
 }
 
+async function executeStoreSwitchCommand(
+  args: z.infer<typeof storeSwitchCommandSchema>,
+  shared: InstructionExecutionSharedArgs
+): Promise<void> {
+  await makeNewSystemGeneration({
+    storePath: "/",
+    nixItemPath: args.item.nixPath,
+    executeActivation: "switch",
+  });
+}
+
 export const storeSwitchCommand = {
   kind: "switch" as const,
   schema: storeSwitchCommandSchema,
   build: buildStoreSwitchCommand,
+  execute: executeStoreSwitchCommand,
 } satisfies CommandImplementation<
   BuildStoreSwitchCommandArgs,
   typeof storeSwitchCommandSchema

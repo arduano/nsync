@@ -2,15 +2,25 @@ import { z } from "zod";
 import {
   CommandImplementation,
   InstructionBuilderSharedArgs,
+  InstructionExecutionSharedArgs,
   storeRoot,
-} from "../common";
+} from "../schemas";
 import { FlakeBuildResult, buildSystemFlake } from "../../nixFlake";
-import { copyOutputToArchive, makeArchiveSubset } from "../../nixArchive";
+import {
+  copyArchiveToStore,
+  copyOutputToArchive,
+  makeArchiveSubset,
+} from "../../nixArchive";
 import { getStoreDeltaPathsDelta } from "../../nixStore";
 import path from "path";
 import fs from "fs";
+import { getAbsoluteNarinfoListInDir } from "../../files";
+import {
+  copyNarinfoFilesToCache,
+  getNarinfoFileListForNixPaths,
+} from "../../clientStore";
 
-export const loadArchiveDeltaCommandSchema = z.object({
+const loadArchiveDeltaCommandSchema = z.object({
   // Command to "load a partial nix archive into the system"
   kind: z.literal("load"),
 
@@ -27,7 +37,7 @@ export const loadArchiveDeltaCommandSchema = z.object({
   item: storeRoot,
 });
 
-export type BuildLoadArchiveDeltaCommandArgs = {
+type BuildLoadArchiveDeltaCommandArgs = {
   kind: "load";
   flakeGitUri: string;
   hostname: string;
@@ -37,7 +47,7 @@ export type BuildLoadArchiveDeltaCommandArgs = {
   newRev: string;
 };
 
-export async function buildLoadArchiveDeltaCommand(
+async function buildLoadArchiveDeltaCommand(
   {
     kind,
     archiveFolderName,
@@ -135,10 +145,63 @@ export async function buildLoadArchiveDeltaCommand(
   };
 }
 
+async function executeLoadArchiveDeltaCommand(
+  {
+    archivePath,
+    deltaDependencies,
+    item,
+    partialNarinfos,
+  }: z.infer<typeof loadArchiveDeltaCommandSchema>,
+  {
+    storePath,
+    clientStateStorePath,
+    instructionFolderPath,
+    progressCallback,
+  }: InstructionExecutionSharedArgs
+): Promise<void> {
+  // Copy all the narinfo files into the archive
+  const absoluteArchivePath = path.join(instructionFolderPath, archivePath);
+
+  const existingNarinfoFilePaths = await getAbsoluteNarinfoListInDir(
+    absoluteArchivePath
+  );
+
+  const narinfoFiles = await getNarinfoFileListForNixPaths({
+    storePath: storePath == "/" ? undefined : storePath,
+    clientStateStorePath: clientStateStorePath,
+    nixPaths: deltaDependencies.map((d) => d.nixPath),
+  });
+
+  for (const narinfoFile of narinfoFiles) {
+    const narinfoFilename = path.basename(narinfoFile);
+
+    const destinationPath = path.join(absoluteArchivePath, narinfoFilename);
+
+    await fs.promises.copyFile(narinfoFile, destinationPath);
+  }
+
+  console.log("Copying nix store items to the store");
+
+  // Copy the item into the store
+  await copyArchiveToStore({
+    archivePath: absoluteArchivePath,
+    item: item.nixPath,
+    storePath: storePath == "/" ? undefined : storePath,
+  });
+
+  console.log("Updating local config");
+
+  await copyNarinfoFilesToCache({
+    clientStateStorePath,
+    narinfoFilePaths: existingNarinfoFilePaths,
+  });
+}
+
 export const loadArchiveDeltaCommand = {
   kind: "load" as const,
   schema: loadArchiveDeltaCommandSchema,
   build: buildLoadArchiveDeltaCommand,
+  execute: executeLoadArchiveDeltaCommand,
 } satisfies CommandImplementation<
   BuildLoadArchiveDeltaCommandArgs,
   typeof loadArchiveDeltaCommandSchema

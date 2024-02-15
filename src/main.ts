@@ -45,9 +45,12 @@ import { getAbsoluteNarinfoListInDir } from "./utils/files";
 import { ensurePathAbsolute } from "./utils/helpers";
 import {
   buildInstructionFolder,
+  executeInstructionFolder,
+} from "./utils/instructions/common";
+import {
   compressInstructionDir,
   decompressInstructionDir,
-} from "./utils/instructions/common";
+} from "./utils/instructions/compression";
 
 const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 
@@ -187,90 +190,13 @@ const dummy2 = command({
       instructionPath,
     });
 
-    // Read instruction
-    const instruction = await readDirInstruction(workdirPath);
-
-    if (instruction.kind !== "switch") {
-      throw new Error("Invalid instruction kind");
-    }
-
-    // Ensure that all the dependent nix paths are in both the store and the client state store
-    let dependentNixPaths = instruction.deltaDependencies.map((d) => d.nixPath);
-    for (let dependentPath of dependentNixPaths) {
-      try {
-        await getPathInfo({
-          storePath: storePath == "/" ? undefined : storePath,
-          pathName: dependentPath,
-        });
-      } catch (e) {
-        console.error(
-          "Failed to execute instruction because a dependent derivation is missing in the nix store"
-        );
-        console.error("Dependent path: " + dependentPath);
-        return 1;
-      }
-
-      try {
-        let storePath =
-          getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
-        await getPathInfo({
-          storePath,
-          pathName: dependentPath,
-        });
-      } catch (e) {
-        console.error(
-          "Failed to execute instruction because a dependent derivation is missing in the client state store"
-        );
-        console.error("Dependent path: " + dependentPath);
-        return 1;
-      }
-    }
-
-    await assertInstructionDirValid(workdirPath);
-
-    // Copy all the narinfo files into the archive
-    const archivePath = path.join(workdirPath, instruction.item.archivePath);
-
-    const existingNarinfoFilePaths = await getAbsoluteNarinfoListInDir(
-      archivePath
-    );
-
-    const narinfoFiles = await getNarinfoFileListForNixPaths({
-      storePath: storePath == "/" ? undefined : storePath,
-      clientStateStorePath: clientStateStorePath,
-      nixPaths: instruction.deltaDependencies.map((d) => d.nixPath),
-    });
-
-    for (const narinfoFile of narinfoFiles) {
-      const narinfoFilename = path.basename(narinfoFile);
-
-      const destinationPath = path.join(archivePath, narinfoFilename);
-
-      await fs.promises.copyFile(narinfoFile, destinationPath);
-    }
-
-    console.log("Copying nix store items to the store");
-
-    // Copy the item into the store
-    await copyArchiveToStore({
-      archivePath,
-      item: instruction.item.itemPath,
-      storePath: storePath == "/" ? undefined : storePath,
-    });
-
-    console.log("Updating local config");
-
-    await copyNarinfoFilesToCache({
+    await executeInstructionFolder({
       clientStateStorePath,
-      narinfoFilePaths: existingNarinfoFilePaths,
-    });
-
-    console.log("Updating system generations");
-
-    await makeNewSystemGeneration({
+      instructionFolderPath: workdirPath,
       storePath,
-      nixItemPath: instruction.item.itemPath,
-      executeActivation: addGeneration ? "switch" : undefined,
+      progressCallback: (progress) => {
+        console.log(progress);
+      },
     });
 
     console.log("Cleaning up");

@@ -1,7 +1,11 @@
 import { z } from "zod";
-import { CommandImplementation } from "../common";
+import {
+  CommandImplementation,
+  InstructionExecutionSharedArgs,
+} from "../schemas";
+import { execaCommand } from "execa";
 
-export const rebootCommandSchema = z.object({
+const rebootCommandSchema = z.object({
   // Command to trigger a reboot
   kind: z.literal("reboot"),
 
@@ -9,12 +13,12 @@ export const rebootCommandSchema = z.object({
   delay: z.number().int().positive().optional(),
 });
 
-export type BuildRebootCommandArgs = {
+type BuildRebootCommandArgs = {
   kind: "reboot";
   delay?: number;
 };
 
-export async function buildRebootCommand({
+async function buildRebootCommand({
   kind,
   delay,
 }: BuildRebootCommandArgs): Promise<z.infer<typeof rebootCommandSchema>> {
@@ -24,10 +28,22 @@ export async function buildRebootCommand({
   };
 }
 
+async function executeRebootCommand(
+  args: z.infer<typeof rebootCommandSchema>,
+  shared: InstructionExecutionSharedArgs
+): Promise<void> {
+  if (args.delay) {
+    await new Promise((resolve) => setTimeout(resolve, args.delay! * 1000));
+  }
+
+  await execaCommand("reboot");
+}
+
 export const rebootCommand = {
   kind: "reboot" as const,
   schema: rebootCommandSchema,
   build: buildRebootCommand,
+  execute: executeRebootCommand,
 } satisfies CommandImplementation<
   BuildRebootCommandArgs,
   typeof rebootCommandSchema
