@@ -52,12 +52,14 @@ export async function getPathInfo({
   pathName,
 }: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
   const storeArg = storePath ? `--store ${storePath}` : "";
+  console.log(`nix path-info --json ${storeArg} ${pathName}`);
   const result = await execaCommand(
     `nix path-info --json ${storeArg} ${pathName}`
   );
   if (result.failed) {
     throw new Error(result.stderr);
   }
+  console.log(JSON.parse(result.stdout));
 
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {
@@ -83,7 +85,6 @@ export async function doesNixPathExist({
     await getPathInfo({ storePath, pathName });
     return true;
   } catch (e) {
-    console.log(e);
     return false;
   }
 }
