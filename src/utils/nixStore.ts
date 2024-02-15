@@ -83,6 +83,7 @@ export async function doesNixPathExist({
     await getPathInfo({ storePath, pathName });
     return true;
   } catch (e) {
+    console.log(e);
     return false;
   }
 }
