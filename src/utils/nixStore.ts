@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { $, execa, execaCommand } from "execa";
 
-const pathInfoData = z.object({
+const pathInfoValidData = z.object({
   ca: z.string().optional(),
   deriver: z.string().optional(),
   narHash: z.string(),
@@ -11,8 +11,16 @@ const pathInfoData = z.object({
   signatures: z.array(z.string()).optional(),
   registrationTime: z.number().optional(),
   url: z.string().optional(),
-  valid: z.boolean(),
+  valid: z.literal(true),
 });
+
+const pathInfoInvalidData = z.object({
+  path: z.string(),
+  valid: z.literal(false),
+});
+
+const pathInfoData = z.union([pathInfoValidData, pathInfoInvalidData]);
+
 const pathInfoDataArray = z.array(pathInfoData);
 
 export type RelevantNixPathInfo = {
@@ -28,6 +36,16 @@ export type RelevantNixPathInfo = {
 function mapParsedPathInfoToRelevantPathInfo(
   parsed: z.infer<typeof pathInfoData>
 ): RelevantNixPathInfo {
+  if (!parsed.valid) {
+    return {
+      path: parsed.path,
+      valid: false,
+      narHash: "",
+      narSize: 0,
+      references: [],
+    };
+  }
+
   return {
     narHash: parsed.narHash,
     narSize: parsed.narSize,
@@ -52,14 +70,12 @@ export async function getPathInfo({
   pathName,
 }: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
   const storeArg = storePath ? `--store ${storePath}` : "";
-  console.log(`nix path-info --json ${storeArg} ${pathName}`);
   const result = await execaCommand(
     `nix path-info --json ${storeArg} ${pathName}`
   );
   if (result.failed) {
     throw new Error(result.stderr);
   }
-  console.log(JSON.parse(result.stdout));
 
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {
