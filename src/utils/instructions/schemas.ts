@@ -7,17 +7,17 @@ export const storeRoot = z.object({
 
 export interface CommandImplementation<
   Args extends object,
-  Schema extends z.ZodObject<any>
+  Schema extends z.ZodObject<any>,
 > {
   kind: string;
   schema: Schema;
   build: (
     args: Args,
-    shared: InstructionBuilderSharedArgs
+    shared: InstructionBuilderSharedArgs,
   ) => Promise<z.infer<z.ZodObject<any>>>;
   execute: (
     args: z.infer<Schema>,
-    shared: InstructionExecutionSharedArgs
+    shared: InstructionExecutionSharedArgs,
   ) => Promise<void>;
 }
 

@@ -1,4 +1,3 @@
-import path from "path";
 import { defineConfig } from "tsup";
 
 export default defineConfig(({ watch, entry, external }) => {

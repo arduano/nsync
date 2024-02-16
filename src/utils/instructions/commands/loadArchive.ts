@@ -1,11 +1,12 @@
 import { z } from "zod";
-import {
+import type {
   CommandImplementation,
   InstructionBuilderSharedArgs,
   InstructionExecutionSharedArgs,
-  storeRoot,
 } from "../schemas";
-import { FlakeBuildResult, buildSystemFlake } from "../../nixFlake";
+import { storeRoot } from "../schemas";
+import type { FlakeBuildResult } from "../../nixFlake";
+import { buildSystemFlake } from "../../nixFlake";
 import {
   copyArchiveToStore,
   copyOutputToArchive,
@@ -62,7 +63,7 @@ async function buildLoadArchiveDeltaCommand(
     workdirArchivePath,
     workdirStorePath,
     progressCallback,
-  }: InstructionBuilderSharedArgs
+  }: InstructionBuilderSharedArgs,
 ): Promise<z.infer<typeof loadArchiveDeltaCommandSchema>> {
   progressCallback("Building previous revisions");
 
@@ -108,7 +109,7 @@ async function buildLoadArchiveDeltaCommand(
   });
 
   progressCallback(
-    `${pathInfo.added.length} paths added, with a total ${pathInfo.allResultingItems.length} store items.`
+    `${pathInfo.added.length} paths added, with a total ${pathInfo.allResultingItems.length} store items.`,
   );
 
   progressCallback("Building new archive");
@@ -157,18 +158,17 @@ async function executeLoadArchiveDeltaCommand(
     clientStateStorePath,
     instructionFolderPath,
     progressCallback,
-  }: InstructionExecutionSharedArgs
+  }: InstructionExecutionSharedArgs,
 ): Promise<void> {
   // Copy all the narinfo files into the archive
   const absoluteArchivePath = path.join(instructionFolderPath, archivePath);
 
-  const existingNarinfoFilePaths = await getAbsoluteNarinfoListInDir(
-    absoluteArchivePath
-  );
+  const existingNarinfoFilePaths =
+    await getAbsoluteNarinfoListInDir(absoluteArchivePath);
 
   const narinfoFiles = await getNarinfoFileListForNixPaths({
     storePath: storePath == "/" ? undefined : storePath,
-    clientStateStorePath: clientStateStorePath,
+    clientStateStorePath,
     nixPaths: deltaDependencies.map((d) => d.nixPath),
   });
 
@@ -180,7 +180,7 @@ async function executeLoadArchiveDeltaCommand(
     await fs.promises.copyFile(narinfoFile, destinationPath);
   }
 
-  console.log("Copying nix store items to the store");
+  progressCallback("Copying nix store items to the store");
 
   // Copy the item into the store
   await copyArchiveToStore({
@@ -189,7 +189,7 @@ async function executeLoadArchiveDeltaCommand(
     storePath: storePath == "/" ? undefined : storePath,
   });
 
-  console.log("Updating local config");
+  progressCallback("Updating local config");
 
   await copyNarinfoFilesToCache({
     clientStateStorePath,

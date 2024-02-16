@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { $, execa, execaCommand } from "execa";
+import { execaCommand } from "execa";
 
 const pathInfoValidData = z.object({
   ca: z.string().optional(),
@@ -34,7 +34,7 @@ export type RelevantNixPathInfo = {
 };
 
 function mapParsedPathInfoToRelevantPathInfo(
-  parsed: z.infer<typeof pathInfoData>
+  parsed: z.infer<typeof pathInfoData>,
 ): RelevantNixPathInfo {
   if (!parsed.valid) {
     return {
@@ -71,7 +71,7 @@ export async function getPathInfo({
 }: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
   const storeArg = storePath ? `--store ${storePath}` : "";
   const result = await execaCommand(
-    `nix path-info --json ${storeArg} ${pathName}`
+    `nix path-info --json ${storeArg} ${pathName}`,
   );
   if (result.failed) {
     throw new Error(result.stderr);
@@ -124,7 +124,7 @@ export async function getPathsInfo({
 
   const storeArg = storePath ? `--store ${storePath}` : "";
   const result = await execaCommand(
-    `nix path-info --json ${storeArg} ${pathNames.join(" ")}`
+    `nix path-info --json ${storeArg} ${pathNames.join(" ")}`,
   );
   if (result.failed) {
     throw new Error(result.stderr);
@@ -140,13 +140,13 @@ export async function getPathsInfo({
     mapParsedPathInfoToRelevantPathInfo(item),
   ]);
 
-  let map = Object.fromEntries(entries);
+  const map = Object.fromEntries(entries);
 
   // Ensure all paths are present
-  for (let pathName of pathNames) {
+  for (const pathName of pathNames) {
     if (!map[pathName]) {
       throw new Error(
-        `Could not find path info for ${pathName}, it's likely absent`
+        `Could not find path info for ${pathName}, it's likely absent`,
       );
     }
   }
@@ -173,12 +173,12 @@ export async function getPathInfoTreeSearch({
 
   while (queue.length > 0) {
     const infos = await getPathsInfo({
-      storePath: storePath,
+      storePath,
       pathNames: queue,
     });
     queue = [];
 
-    for (let info of Object.values(infos)) {
+    for (const info of Object.values(infos)) {
       pathInfos.push(info);
       for (const reference of info.references) {
         if (!foundPaths.has(reference)) {
@@ -196,7 +196,7 @@ export async function getPathInfoTreeSearch({
  * Given an item path, get the path hash of the path. The path hash is under `/nix/store/<hash>-<name>`.
  */
 export function getPathHashFromPath(itemPath: string) {
-  let hash = itemPath.split("/").pop()?.split("-")?.[0];
+  const hash = itemPath.split("/").pop()?.split("-")[0];
 
   if (!hash) {
     throw new Error(`Could not get hash from item path: ${itemPath}`);
@@ -222,18 +222,18 @@ export async function getStoreDeltaPathsDelta({
   const fromItems = await Promise.all(
     fromRootPathNames.map((pathName) =>
       getPathInfoTreeSearch({
-        storePath: storePath,
+        storePath,
         rootPathNames: [pathName],
-      })
-    )
+      }),
+    ),
   );
   const toItems = await getPathInfoTreeSearch({
-    storePath: storePath,
+    storePath,
     rootPathNames: [toRootPathName],
   });
 
   const fromPathsSet = new Set(
-    fromItems.flatMap((group) => group.map((info) => info.path))
+    fromItems.flatMap((group) => group.map((info) => info.path)),
   );
   const added = toItems.filter((item) => !fromPathsSet.has(item.path));
 

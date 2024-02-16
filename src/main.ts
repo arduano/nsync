@@ -10,44 +10,12 @@ import {
   multioption,
   optional,
 } from "cmd-ts";
-import {
-  FlakeBuildResult,
-  buildSystemFlake,
-  getFlakeHostnames,
-  getFlakeInfo,
-  getGitRevisions,
-} from "./utils/nixFlake";
-import {
-  getPathInfo,
-  getPathInfoTreeSearch,
-  getStoreDeltaPathsDelta,
-} from "./utils/nixStore";
-import {
-  copyArchiveToStore,
-  copyOutputToArchive,
-  makeArchiveSubset,
-} from "./utils/nixArchive";
-import {
-  assertInstructionDirValid,
-  makeDirInstruction,
-  readDirInstruction,
-} from "./utils/instructions";
-import path from "path";
+
 import fs from "fs";
-import { buildSystemUpdateInstruction } from "./utils/operations";
-import {
-  copyNarinfoFilesToCache,
-  getClientStoreNarinfoCachePathAsStorePath,
-  getNarinfoFileListForNixPaths,
-} from "./utils/clientStore";
-import {
-  getNixStoreGenerations,
-  makeNewSystemGeneration,
-} from "./utils/nixGenerations";
-import { getAbsoluteNarinfoListInDir } from "./utils/files";
+
 import { ensurePathAbsolute } from "./utils/helpers";
+import type { BuildCommandArgs } from "./utils/instructions/common";
 import {
-  BuildCommandArgs,
   buildInstructionFolder,
   executeInstructionFolder,
 } from "./utils/instructions/common";
@@ -55,7 +23,7 @@ import {
   compressInstructionDir,
   decompressInstructionDir,
 } from "./utils/instructions/compression";
-import { customAlphabet, nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
 
 const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);
 
@@ -76,7 +44,7 @@ const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);
 function splitFlakeArgToUriAndHostname(flake: string) {
   if (!flake.includes("#")) {
     throw new Error(
-      "Invalid flake address. A hostname is required, e.g. `github:owner/repo#hostname` or `/path/to/flake#hostname`"
+      "Invalid flake address. A hostname is required, e.g. `github:owner/repo#hostname` or `/path/to/flake#hostname`",
     );
   }
 
@@ -84,7 +52,7 @@ function splitFlakeArgToUriAndHostname(flake: string) {
 
   if (hostname.includes("?")) {
     throw new Error(
-      "Invalid flake address. Query strings aren't supported in flake addresses in nsync."
+      "Invalid flake address. Query strings aren't supported in flake addresses in nsync.",
     );
   }
 
@@ -169,7 +137,7 @@ const create = command({
 
     if (!guessedWorkdirPath && !workdirPath) {
       throw new Error(
-        "If the flake is remote, then the workdir path is required. Use the --workdir or -w option."
+        "If the flake is remote, then the workdir path is required. Use the --workdir or -w option.",
       );
     }
 
@@ -210,7 +178,8 @@ const create = command({
       workdirStorePath,
       workdirArchivePath,
       progressCallback: (progress) => {
-        console.log(progress);
+        // eslint-disable-next-line no-console
+        console.warn(progress);
       },
     });
 
@@ -264,9 +233,14 @@ const exec = command({
   }) => {
     if (!isRoot()) {
       throw new Error(
-        "This command must be run as root, as it will write to the nix store."
+        "This command must be run as root, as it will write to the nix store.",
       );
     }
+
+    const progressCallback = (progress: string) => {
+      // eslint-disable-next-line no-console
+      console.warn(progress);
+    };
 
     workdirPath = workdirPath || `/tmp/nsync-${fileId()}`;
 
@@ -278,7 +252,7 @@ const exec = command({
     // Make workdir
     await fs.promises.mkdir(workdirPath, { recursive: true });
 
-    console.log("Decompressing instruction");
+    progressCallback("Decompressing instruction");
 
     // Extract instruction
     await decompressInstructionDir({
@@ -290,12 +264,10 @@ const exec = command({
       clientStateStorePath,
       instructionFolderPath: workdirPath,
       storePath,
-      progressCallback: (progress) => {
-        console.log(progress);
-      },
+      progressCallback,
     });
 
-    console.log("Cleaning up");
+    progressCallback("Cleaning up");
 
     // Cleanup workdir
     await fs.promises.rm(workdirPath, { recursive: true });
@@ -307,4 +279,4 @@ const app = subcommands({
   cmds: { create, exec },
 });
 
-run(app, process.argv.slice(2));
+void run(app, process.argv.slice(2));

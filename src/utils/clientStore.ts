@@ -12,9 +12,9 @@ export function getClientStateDataFilePath(clientStatePath: string) {
 }
 
 export function getClientStoreNarinfoCachePathAsStorePath(
-  clientStatePath: string
+  clientStatePath: string,
 ) {
-  let cacheFolder = getClientStateNarinfoCachePath(clientStatePath);
+  const cacheFolder = getClientStateNarinfoCachePath(clientStatePath);
   return `file://${cacheFolder}`;
 }
 
@@ -24,13 +24,13 @@ const clientStateForSingleStoreConfig = z.object({
       generationLinkName: z.string(),
       nixPath: z.string(),
       gitRevision: z.string(),
-    })
+    }),
   ),
 });
 
 const clientStateConfig = z.record(
   // Record key = store path
-  clientStateForSingleStoreConfig
+  clientStateForSingleStoreConfig,
 );
 
 type ClientStateForSingleStoreConfig = z.infer<
@@ -87,7 +87,7 @@ export async function saveClientStoreConfig({
 
   let stateConfig: ClientStateConfig = {};
   if (fs.existsSync(stateDataPath)) {
-    let fileText = await fs.promises.readFile(stateDataPath, "utf-8");
+    const fileText = await fs.promises.readFile(stateDataPath, "utf-8");
     const parsed = clientStateConfig.safeParse(JSON.parse(fileText));
     if (!parsed.success) {
       throw new Error("Invalid/corrupt state file");
@@ -101,7 +101,7 @@ export async function saveClientStoreConfig({
   await fs.promises.writeFile(
     stateDataPath,
     JSON.stringify(stateConfig, null, 2),
-    "utf-8"
+    "utf-8",
   );
 }
 
@@ -125,11 +125,12 @@ export async function getNarinfoFileListForNixPaths({
     storePath,
   });
 
-  let cacheFolder = await getClientStateNarinfoCachePath(clientStateStorePath);
+  const cacheFolder =
+    await getClientStateNarinfoCachePath(clientStateStorePath);
 
   return pathInfos.map((pathInfo) => {
-    let hash = getPathHashFromPath(pathInfo.path);
-    let filename = `${hash}.narinfo`;
+    const hash = getPathHashFromPath(pathInfo.path);
+    const filename = `${hash}.narinfo`;
     return path.join(cacheFolder, filename);
   });
 }
@@ -182,13 +183,14 @@ export async function copyNarinfoFilesToCache({
   narinfoFilePaths,
   clientStateStorePath,
 }: CopyNarinfoFilesToCacheArgs) {
-  let cacheFolder = await getClientStateNarinfoCachePath(clientStateStorePath);
+  const cacheFolder =
+    await getClientStateNarinfoCachePath(clientStateStorePath);
 
   await fs.promises.mkdir(cacheFolder, { recursive: true });
 
   for (const narinfoPath of narinfoFilePaths) {
-    let filename = path.basename(narinfoPath);
-    let destinationPath = path.join(cacheFolder, filename);
+    const filename = path.basename(narinfoPath);
+    const destinationPath = path.join(cacheFolder, filename);
     await fs.promises.copyFile(narinfoPath, destinationPath);
   }
 }

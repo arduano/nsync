@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {
+import type {
   CommandImplementation,
   InstructionExecutionSharedArgs,
 } from "../schemas";
@@ -32,7 +32,7 @@ async function buildStoreCleanupCommand({
 
 async function executeStoreCleanupCommand(
   args: z.infer<typeof storeCleanupCommandSchema>,
-  shared: InstructionExecutionSharedArgs
+  shared: InstructionExecutionSharedArgs,
 ): Promise<void> {
   await cleanupOldGenerations({
     keepGenerationCount: args.generationsToKeep,

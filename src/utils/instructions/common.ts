@@ -8,7 +8,7 @@ import { storeSwitchCommand } from "./commands/storeSwitch";
 import { storeCleanupCommand } from "./commands/storeCleanup";
 import { rebootCommand } from "./commands/reboot";
 import { mapTuple, unreachable } from "../helpers";
-import {
+import type {
   CommandImplementation,
   InstructionBuilderSharedArgs,
   InstructionExecutionSharedArgs,
@@ -21,19 +21,15 @@ const commandList = [
   rebootCommand,
 ] as const;
 
-type CommandImplementationArgs<T> = T extends CommandImplementation<
-  infer Args,
-  any
->
-  ? Args
-  : never;
+type CommandImplementationArgs<T> =
+  T extends CommandImplementation<infer Args, any> ? Args : never;
 
 type Command = (typeof commandList)[number];
 
 export type BuildCommandArgs = CommandImplementationArgs<Command>;
 
 const instructionCommand = z.union(
-  mapTuple(commandList, (c: Command) => c.schema)
+  mapTuple(commandList, (c: Command) => c.schema),
 );
 const instructionSchema = z.array(instructionCommand);
 
@@ -73,7 +69,7 @@ export async function assertInstructionCanBeApplied({
     }
 
     // Check if the path exists in the narinfo cache
-    let storePath =
+    const storePath =
       getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
     const exists = await doesNixPathExist({
       storePath,
@@ -93,18 +89,18 @@ export async function assertInstructionCanBeApplied({
           const storePathExists = await hasStorePath(dep.nixPath);
           if (!storePathExists) {
             return new Error(
-              `Failed to execute "load" instruction because a dependent derivation is missing in the nix store: ${dep.nixPath}`
+              `Failed to execute "load" instruction because a dependent derivation is missing in the nix store: ${dep.nixPath}`,
             );
           }
 
           // Check narinfo cache if necessary
           if (step.partialNarinfos) {
             const cachePathExists = await hasCachedNarinfoStorePath(
-              dep.nixPath
+              dep.nixPath,
             );
             if (!cachePathExists) {
               return new Error(
-                `Failed to execute "load" instruction because a dependent derivation is missing in the narinfo cache: ${dep.nixPath}`
+                `Failed to execute "load" instruction because a dependent derivation is missing in the narinfo cache: ${dep.nixPath}`,
               );
             }
           }
@@ -120,7 +116,7 @@ export async function assertInstructionCanBeApplied({
         const storePathExists = await hasStorePath(step.item.nixPath);
         if (!storePathExists) {
           return new Error(
-            `Failed to execute "switch" instruction because the new derivation is missing in the nix store: ${step.item.nixPath}`
+            `Failed to execute "switch" instruction because the new derivation is missing in the nix store: ${step.item.nixPath}`,
           );
         }
 
@@ -148,7 +144,7 @@ export async function assertInstructionCanBeApplied({
 
 export async function buildInstructionFolder(
   commandsArgs: BuildCommandArgs[],
-  shared: InstructionBuilderSharedArgs
+  shared: InstructionBuilderSharedArgs,
 ) {
   const instructionFolderPath = shared.instructionFolderPath;
 
@@ -169,7 +165,7 @@ export async function buildInstructionFolder(
   const parsed = instructionSchema.safeParse(commands);
   if (parsed.success === false) {
     throw new Error(
-      `Failed to build instruction because it doesn't match the schema. This is a bug.`
+      `Failed to build instruction because it doesn't match the schema. This is a bug.`,
     );
   }
 
@@ -177,16 +173,16 @@ export async function buildInstructionFolder(
   const instructionPath = path.join(instructionFolderPath, "instruction.json");
   await fs.promises.writeFile(
     instructionPath,
-    JSON.stringify(commands, null, 2)
+    JSON.stringify(commands, null, 2),
   );
 }
 
 export async function executeInstructionFolder(
-  shared: InstructionExecutionSharedArgs
+  shared: InstructionExecutionSharedArgs,
 ) {
   const instructionFile = path.join(
     shared.instructionFolderPath,
-    "instruction.json"
+    "instruction.json",
   );
 
   const instructionText = await fs.promises.readFile(instructionFile, "utf-8");

@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { buildSystemFlake } from "../../nixFlake";
-import {
-  storeRoot,
+import type {
   InstructionBuilderSharedArgs,
   CommandImplementation,
   InstructionExecutionSharedArgs,
 } from "../schemas";
+import { storeRoot } from "../schemas";
 import { makeNewSystemGeneration } from "../../nixGenerations";
 
 const storeSwitchCommandSchema = z.object({
@@ -25,7 +25,7 @@ type BuildStoreSwitchCommandArgs = {
 
 async function buildStoreSwitchCommand(
   { kind, flakeUri, hostname, ref, mode }: BuildStoreSwitchCommandArgs,
-  { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs
+  { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs,
 ): Promise<z.infer<typeof storeSwitchCommandSchema>> {
   progressCallback("Building switch command");
 
@@ -33,7 +33,7 @@ async function buildStoreSwitchCommand(
     flakeUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
-    ref: ref,
+    ref,
   });
 
   return {
@@ -48,7 +48,7 @@ async function buildStoreSwitchCommand(
 
 async function executeStoreSwitchCommand(
   args: z.infer<typeof storeSwitchCommandSchema>,
-  shared: InstructionExecutionSharedArgs
+  shared: InstructionExecutionSharedArgs,
 ): Promise<void> {
   await makeNewSystemGeneration({
     storePath: "/",

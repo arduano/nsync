@@ -7,14 +7,14 @@ import { exists } from "./helpers";
  */
 export async function getAbsoluteFilteredItemsListInDir(
   dir: string,
-  filter: (filename: string) => boolean | Promise<boolean>
+  filter: (filename: string) => boolean | Promise<boolean>,
 ) {
   const files = await fs.promises.readdir(dir);
   const filteredFiles = await Promise.all(
     files.map(async (file) => {
       const fullPath = path.join(dir, file);
       return (await filter(file)) ? fullPath : null;
-    })
+    }),
   );
 
   return filteredFiles.filter(exists);

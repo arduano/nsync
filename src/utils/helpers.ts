@@ -1,5 +1,4 @@
 import path from "path";
-import fs from "fs";
 
 export function exists<T>(value: T | undefined | null): value is T {
   return value != null;
@@ -23,7 +22,7 @@ type MappedTuple<T extends readonly any[], F extends (arg: any) => any> = {
 
 export function mapTuple<T extends readonly any[], F extends (arg: any) => any>(
   tuple: readonly [...T],
-  mapFn: F
+  mapFn: F,
 ): MappedTuple<T, F> {
   return tuple.map(mapFn) as MappedTuple<T, F>;
 }

@@ -7,6 +7,9 @@
     "start": "DEV=false yarn tsup && node --enable-source-maps dist/main.js",
     "build": "yarn tsup"
   },
+  "resolutions": {
+    "strip-ansi": "6.0.1"
+  },
   "dependencies": {
     "@types/ink": "^2.0.3",
     "@types/node": "^20.11.16",
@@ -20,6 +23,14 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@swc/core": "^1.3.107"
+    "@swc/core": "^1.3.107",
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/parser": "^7.0.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-unused-imports": "^3.1.0",
+    "prettier-eslint": "^16.3.0"
   }
 }

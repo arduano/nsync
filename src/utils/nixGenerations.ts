@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { exists } from "./helpers";
-import { execa, execaCommand } from "execa";
+import { execaCommand } from "execa";
 
 export async function getNixStoreGenerations(profilePrefix: string) {
   const folderName = path.dirname(profilePrefix);
@@ -21,7 +21,7 @@ export async function getNixStoreGenerations(profilePrefix: string) {
           link: await fs.promises.readlink(itemPath),
         };
       }
-    })
+    }),
   );
 
   const links = linkFiles.filter(exists);
@@ -55,16 +55,16 @@ export async function getNixStoreGenerations(profilePrefix: string) {
     .filter(exists);
 
   const currentGeneration = generations.find(
-    (item) => item.linkFilename === currentGenerationLink.link
+    (item) => item.linkFilename === currentGenerationLink.link,
   );
 
   const highestGenerationNumber = generations.reduce(
     (acc, item) => (item.generation > acc ? item.generation : acc),
-    0
+    0,
   );
 
   const highestGeneration = generations.find(
-    (item) => item.generation === highestGenerationNumber
+    (item) => item.generation === highestGenerationNumber,
   );
 
   return {
@@ -83,7 +83,7 @@ type GetNixStoreSystemGenerationsArgs = {
 export async function getNixStoreSystemGenerations({
   storePath,
 }: GetNixStoreSystemGenerationsArgs) {
-  let prefix = path.join(storePath, systemProfilesPrefix);
+  const prefix = path.join(storePath, systemProfilesPrefix);
   return getNixStoreGenerations(prefix);
 }
 
@@ -101,32 +101,33 @@ export async function makeNewSystemGeneration({
   nixItemPath,
   executeActivation,
 }: MakeNewSystemGenerationArgs) {
-  let generationData = await getNixStoreSystemGenerations({ storePath });
-  let generations = generationData?.generations ?? [];
+  const generationData = await getNixStoreSystemGenerations({ storePath });
+  const generations = generationData?.generations ?? [];
 
   // Sort by generation number
   generations.sort((a, b) => a.generation - b.generation);
 
   // Get the largest generation
-  let lastGeneration = generations[generations.length - 1];
-  let lastGenerationNumber = lastGeneration?.generation ?? 0;
+  const lastGeneration =
+    generations.length == 0 ? null : generations[generations.length - 1];
+  const lastGenerationNumber = lastGeneration?.generation ?? 0;
 
-  let newGenerationNumber = lastGenerationNumber + 1;
+  const newGenerationNumber = lastGenerationNumber + 1;
 
-  let newGenerationLinkName = `-${newGenerationNumber}-link`;
-  let newGenerationPathPrefix = path.join(storePath, systemProfilesPrefix);
-  let newGenerationLinkPath = newGenerationPathPrefix + newGenerationLinkName;
+  const newGenerationLinkName = `-${newGenerationNumber}-link`;
+  const newGenerationPathPrefix = path.join(storePath, systemProfilesPrefix);
+  const newGenerationLinkPath = newGenerationPathPrefix + newGenerationLinkName;
 
   await fs.promises.symlink(nixItemPath, newGenerationLinkPath);
 
   if (executeActivation) {
     await execaCommand(
-      `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`
+      `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`,
     );
 
-    let activationCommand = path.join(
+    const activationCommand = path.join(
       newGenerationPathPrefix,
-      "bin/switch-to-configuration"
+      "bin/switch-to-configuration",
     );
     await execaCommand(`${activationCommand} ${executeActivation}`, {
       env: {
@@ -149,25 +150,25 @@ export async function cleanupOldGenerations({
   storePath,
   keepGenerationCount,
 }: CleanupOldGenerationsArgs) {
-  let generationData = await getNixStoreSystemGenerations({ storePath });
+  const generationData = await getNixStoreSystemGenerations({ storePath });
   if (!generationData || !generationData.currentGeneration) {
     // If it fails to fetch generations, or the current generation, then skip
     return;
   }
 
-  let generations = generationData.generations;
-  let currentGeneration = generationData.currentGeneration;
+  const generations = generationData.generations;
+  const currentGeneration = generationData.currentGeneration;
 
   // Sort by generation number
   generations.sort((a, b) => a.generation - b.generation);
 
   // Delete all generations from 0 to N-keepGenerationCount
-  let generationsToDelete = generations.slice(
+  const generationsToDelete = generations.slice(
     0,
-    generations.length - keepGenerationCount
+    generations.length - keepGenerationCount,
   );
 
-  for (let generation of generationsToDelete) {
+  for (const generation of generationsToDelete) {
     if (generation.generation === currentGeneration.generation) {
       continue;
     }

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { makeArchiveSubset } from "./nixArchive";
 import path from "path";
 import fs from "fs";
 import { execaCommand } from "execa";
@@ -40,12 +39,12 @@ export async function makeDirInstruction({
 }: MakeDirInstructionArgs) {
   const instructionDestinationPath = path.join(
     destinationFolder,
-    "instruction.json"
+    "instruction.json",
   );
 
   await fs.promises.writeFile(
     instructionDestinationPath,
-    JSON.stringify(data, null, 2)
+    JSON.stringify(data, null, 2),
   );
 }
 
@@ -127,7 +126,7 @@ export async function readDirInstruction(dir: string) {
   try {
     const instructionData = await fs.promises.readFile(
       instructionPath,
-      "utf-8"
+      "utf-8",
     );
     const json = JSON.parse(instructionData);
     const parsed = storeSwitchCommand.safeParse(json);

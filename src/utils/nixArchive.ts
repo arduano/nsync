@@ -1,7 +1,6 @@
 import { execaCommand } from "execa";
 import fs from "fs";
 import path from "path";
-import { z } from "zod";
 import { getPathHashFromPath, getPathsInfo } from "./nixStore";
 
 type CopyOutputToArchiveArgs = {
@@ -23,7 +22,7 @@ export async function copyOutputToArchive({
     `nix copy --to file://${archivePath} ${storeArg} ${item}`,
     {
       stderr: "inherit",
-    }
+    },
   );
 
   const result = await command;
@@ -127,7 +126,7 @@ export async function copyArchiveToStore({
     `nix copy --no-check-sigs --from file://${archivePath} ${storeArg} ${item}`,
     {
       stderr: "inherit",
-    }
+    },
   );
 
   const result = await command;

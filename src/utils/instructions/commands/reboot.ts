@@ -1,5 +1,5 @@
 import { z } from "zod";
-import {
+import type {
   CommandImplementation,
   InstructionExecutionSharedArgs,
 } from "../schemas";
@@ -31,7 +31,7 @@ async function buildRebootCommand({
 
 async function executeRebootCommand(
   args: z.infer<typeof rebootCommandSchema>,
-  shared: InstructionExecutionSharedArgs
+  shared: InstructionExecutionSharedArgs,
 ): Promise<void> {
   // Delete the instruction workdir as it won't be needed after the reboot
   await fs.promises.rmdir(shared.instructionFolderPath, { recursive: true });

@@ -13,10 +13,10 @@ export async function getRevisionFromRef({
   flakeUri,
   ref,
 }: GetFlakeRevisionFromRefArgs) {
-  let refArg = ref ? `?ref=${ref}` : "";
+  const refArg = ref ? `?ref=${ref}` : "";
 
   const result = await execaCommand(
-    `nix flake metadata --json ${flakeUri}${refArg}`
+    `nix flake metadata --json ${flakeUri}${refArg}`,
   );
   if (result.failed) {
     throw new Error(result.stderr);
@@ -38,10 +38,10 @@ type GetFlakeExportsArgs = {
  * Given a path and a revision, get the `nix flake show` result of the flake, which generally shows all the flake exports.
  */
 export async function getFlakeInfo({ flakeUri, rev }: GetFlakeExportsArgs) {
-  let revArg = rev ? `?rev=${rev}` : "";
+  const revArg = rev ? `?rev=${rev}` : "";
 
   const result = await execaCommand(
-    `nix flake show --json ${flakeUri}${revArg}`
+    `nix flake show --json ${flakeUri}${revArg}`,
   );
   if (result.failed) {
     throw new Error(result.stderr);
@@ -131,7 +131,7 @@ const flakeBuildCommandResult = z
       outputs: z.object({
         out: z.string(),
       }),
-    })
+    }),
   )
   .length(1);
 
@@ -147,13 +147,13 @@ export async function buildSystemFlake({
 }: BuildFlakeArgs) {
   const gitRev = await getRevisionFromRef({ flakeUri, ref });
 
-  let hostnames = await getFlakeHostnames({ flakeUri, rev: gitRev });
+  const hostnames = await getFlakeHostnames({ flakeUri, rev: gitRev });
 
   if (!hostnames.includes(hostname)) {
     throw new Error(
       `No flake configuration found for hostname: ${hostname}. Available hostnames: ${hostnames.join(
-        ", "
-      )}`
+        ", ",
+      )}`,
     );
   }
 
@@ -164,7 +164,7 @@ export async function buildSystemFlake({
     `nix build --json --no-link --store ${nixStoreRoot} ${flakeUri}?rev=${gitRev}#${attr}`,
     {
       stderr: "inherit",
-    }
+    },
   );
 
   // Pipe stderr to the host
@@ -176,7 +176,7 @@ export async function buildSystemFlake({
 
   try {
     const parsedResult = flakeBuildCommandResult.parse(
-      JSON.parse(result.stdout)
+      JSON.parse(result.stdout),
     );
 
     const parsed = {
