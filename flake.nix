@@ -1,5 +1,5 @@
 {
-  description = "A development shell with FHS environment containing Node.js, xz, and tar";
+  description = "Nsync - A TCP-less nix system synchronization tool";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
