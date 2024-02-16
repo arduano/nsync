@@ -36,25 +36,6 @@ type GetArchiveDetailsArgs = {
   archivePath: string;
 };
 
-/**
- * Given an archive path, give all the details about the archive.
- */
-export async function getArchiveDetails({
-  archivePath,
-}: GetArchiveDetailsArgs) {
-  const command = execaCommand(`nix show-derivation ${archivePath}`, {
-    stderr: "inherit",
-  });
-
-  const result = await command;
-
-  if (result.failed) {
-    throw new Error(result.stderr);
-  }
-
-  return result.stdout;
-}
-
 type MakeArchiveSubsetArgs = {
   archivePath: string;
   destinationPath: string;

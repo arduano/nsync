@@ -5,7 +5,7 @@ import { exists } from "./helpers";
 /**
  * Gets the list of absolute paths to items in a directory that pass a filter.
  */
-export async function getAbsoluteFilteredItemsListInDir(
+async function getAbsoluteFilteredItemsListInDir(
   dir: string,
   filter: (filename: string) => boolean | Promise<boolean>,
 ) {

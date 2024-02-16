@@ -1,4 +1,4 @@
-import { $, execaCommand } from "execa";
+import { execaCommand } from "execa";
 import { z } from "zod";
 
 type GetFlakeRevisionFromRefArgs = {
@@ -83,38 +83,6 @@ export async function getFlakeHostnames({
 
   const hostnames = Object.keys(configurations);
   return hostnames;
-}
-
-type GetGitRevisionsArgs = {
-  absolutePath: string;
-};
-
-/**
- * Get the git revisions of a flake.
- */
-export async function getGitRevisions({ absolutePath }: GetGitRevisionsArgs) {
-  const result = await $`git -C ${absolutePath} log --pretty=format:%H`;
-  if (result.failed) {
-    throw new Error(result.stderr);
-  }
-
-  return result.stdout.split("\n");
-}
-
-type CheckFlakeDirtyArgs = {
-  absolutePath: string;
-};
-
-/**
- * Check if a flake is dirty (i.e. has uncommitted changes).
- */
-export async function checkFlakeDirty({ absolutePath }: CheckFlakeDirtyArgs) {
-  const result = await $`git -C ${absolutePath} status --porcelain`;
-  if (result.failed) {
-    throw new Error(result.stderr);
-  }
-
-  return result.stdout.trim() !== "";
 }
 
 type BuildFlakeArgs = {

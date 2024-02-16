@@ -3,12 +3,8 @@ import fs from "fs";
 import { z } from "zod";
 import { getPathHashFromPath, getPathInfoTreeSearch } from "./nixStore";
 
-export function getClientStateNarinfoCachePath(clientStatePath: string) {
+function getClientStateNarinfoCachePath(clientStatePath: string) {
   return path.join(clientStatePath, "narinfo-cache");
-}
-
-export function getClientStateDataFilePath(clientStatePath: string) {
-  return path.join(clientStatePath, "state.json");
 }
 
 export function getClientStoreNarinfoCachePathAsStorePath(
@@ -36,74 +32,6 @@ const clientStateConfig = z.record(
 type ClientStateForSingleStoreConfig = z.infer<
   typeof clientStateForSingleStoreConfig
 >;
-type ClientStateConfig = z.infer<typeof clientStateConfig>;
-
-const defaultStateConfig: ClientStateForSingleStoreConfig = {
-  generations: [],
-};
-
-type ReadClientStoreConfigArgs = {
-  clientStateStorePath: string;
-  storePath: string;
-};
-
-export async function readClientStoreConfig({
-  clientStateStorePath,
-  storePath,
-}: ReadClientStoreConfigArgs) {
-  const stateDataPath = await getClientStateDataFilePath(clientStateStorePath);
-
-  if (!fs.existsSync(stateDataPath)) {
-    return defaultStateConfig;
-  }
-
-  let stateConfig;
-  try {
-    const fileText = await fs.promises.readFile(stateDataPath, "utf-8");
-    stateConfig = clientStateConfig.safeParse(JSON.parse(fileText));
-  } catch (e) {
-    throw new Error("Error reading client state file");
-  }
-
-  if (!stateConfig.success) {
-    throw new Error("Invalid/corrupt state file");
-  }
-
-  return stateConfig.data[storePath] ?? defaultStateConfig;
-}
-
-type SaveClientStoreConfigArgs = {
-  clientStateStorePath: string;
-  storePath: string;
-  config: ClientStateForSingleStoreConfig;
-};
-
-export async function saveClientStoreConfig({
-  clientStateStorePath,
-  storePath,
-  config,
-}: SaveClientStoreConfigArgs) {
-  const stateDataPath = await getClientStateDataFilePath(clientStateStorePath);
-
-  let stateConfig: ClientStateConfig = {};
-  if (fs.existsSync(stateDataPath)) {
-    const fileText = await fs.promises.readFile(stateDataPath, "utf-8");
-    const parsed = clientStateConfig.safeParse(JSON.parse(fileText));
-    if (!parsed.success) {
-      throw new Error("Invalid/corrupt state file");
-    }
-
-    stateConfig = parsed.data;
-  }
-
-  stateConfig[storePath] = config;
-
-  await fs.promises.writeFile(
-    stateDataPath,
-    JSON.stringify(stateConfig, null, 2),
-    "utf-8",
-  );
-}
 
 type GetNarinfoFileListForRevisionsArgs = {
   storePath?: string;
@@ -132,42 +60,6 @@ export async function getNarinfoFileListForNixPaths({
     const hash = getPathHashFromPath(pathInfo.path);
     const filename = `${hash}.narinfo`;
     return path.join(cacheFolder, filename);
-  });
-}
-
-type AddRevToClientStoreConfigArgs = {
-  clientStateStorePath: string;
-  generationLinkName: string;
-  storePath: string;
-  rev: string;
-  nixPath: string;
-};
-
-/**
- * Adds a revision to the client store config.
- */
-export async function addRevToClientStoreConfig({
-  clientStateStorePath,
-  generationLinkName,
-  storePath,
-  rev,
-  nixPath,
-}: AddRevToClientStoreConfigArgs) {
-  const config = await readClientStoreConfig({
-    clientStateStorePath,
-    storePath,
-  });
-
-  config.generations.push({
-    generationLinkName,
-    gitRevision: rev,
-    nixPath,
-  });
-
-  await saveClientStoreConfig({
-    clientStateStorePath,
-    storePath,
-    config,
   });
 }
 
