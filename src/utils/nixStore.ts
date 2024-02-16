@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CommandError, execThirdPartyCommand } from "../errors";
+import path from "path";
 
 const pathInfoValidData = z.object({
   ca: z.string().optional(),
@@ -185,23 +186,32 @@ export async function getPathInfoTreeSearch({
 }
 
 /**
- * Given an item path, get the path hash of the path. The path hash is under `/nix/store/<hash>-<name>`.
+ * Given an item path, folder name of the path. The folder name is under `/nix/store/<name>`.
  */
-export function getPathHashFromPath(itemPath: string) {
-  const hash = itemPath.split("/").pop()?.split("-")[0];
-
-  if (!hash) {
+export function getNixPathFolderName(itemPath: string) {
+  if (!itemPath.startsWith("/nix/store/")) {
     throw new CommandError(
       "Failed analysing store dependencies",
-      `Could not get hash from item path: ${itemPath}`,
+      `The path is not a store path: ${itemPath}`,
     );
   }
 
+  return path.basename(itemPath);
+}
+
+/**
+ * Given an item path, get the path hash of the path. The path hash is under `/nix/store/<hash>-<name>`.
+ */
+export function getPathHashFromPath(itemPath: string) {
+  const folder = getNixPathFolderName(itemPath);
+  const hash = folder.split("-")[0];
   return hash;
 }
 
 export function nixPathInfoToNarinfoFileString(info: NixPathInfo) {
   const lines: string[] = [];
+
+  const references = info.references.map((r) => getNixPathFolderName(r));
 
   lines.push(`StorePath: ${info.path}`);
   lines.push(`URL: ${info.url ?? "virtual_generated"}`);
@@ -210,7 +220,7 @@ export function nixPathInfoToNarinfoFileString(info: NixPathInfo) {
   lines.push(`FileSize: ${info.narSize}`);
   lines.push(`NarHash: ${info.narHash}`);
   lines.push(`NarSize: ${info.narSize}`);
-  lines.push(`References: ${info.references.join(" ")}`);
+  lines.push(`References: ${references.join(" ")}`);
   lines.push(`Deriver: ${info.deriver ?? "virtual_generated"}`);
   if (info.signatures) {
     lines.push(`Sig: ${info.signatures.join(" ")}`);
