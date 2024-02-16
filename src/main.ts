@@ -186,20 +186,19 @@ const create = command({
 });
 
 const exec = command({
-  name: "Execute an instruction from an archive",
+  name: "exec",
+  description: "Execute an instruction on the current system",
   args: {
+    instructionPath: positional({
+      type: string,
+      description: "The instruction to execute. This is a .tar.xz file.",
+    }),
     workdirPath: option({
       type: optional(string),
       long: "workdir",
       short: "w",
       description:
         "The work directory to extract the instruction to. Defaults to a folder inside /tmp",
-    }),
-    instructionPath: option({
-      type: string,
-      long: "instruction",
-      short: "i",
-      description: "The instruction to execute. This is a .tar.xz file.",
     }),
     storePath: option({
       type: string,
