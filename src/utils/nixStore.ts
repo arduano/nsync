@@ -23,27 +23,16 @@ const pathInfoData = z.union([pathInfoValidData, pathInfoInvalidData]);
 
 const pathInfoDataArray = z.array(pathInfoData);
 
-export type RelevantNixPathInfo = {
-  narHash: string;
-  narSize: number;
-  path: string;
-  references: string[];
-  registrationTime?: number;
-  url?: string;
-  valid: boolean;
-};
+type NixPathInfo = z.infer<typeof pathInfoValidData>;
 
 function mapParsedPathInfoToRelevantPathInfo(
   parsed: z.infer<typeof pathInfoData>,
-): RelevantNixPathInfo {
+): NixPathInfo {
   if (!parsed.valid) {
-    return {
-      path: parsed.path,
-      valid: false,
-      narHash: "",
-      narSize: 0,
-      references: [],
-    };
+    throw new CommandError(
+      "Failed to get store path info",
+      `The path info is invalid, it likely doesn't exist: ${parsed.path}`,
+    );
   }
 
   return {
@@ -68,7 +57,7 @@ type GetPathInfoArgs = {
 export async function getPathInfo({
   storePath,
   pathName,
-}: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
+}: GetPathInfoArgs): Promise<NixPathInfo | null> {
   const storeArg = storePath ? `--store ${storePath}` : "";
   const result = await execThirdPartyCommand(
     `nix path-info --json ${storeArg} ${pathName}`,
@@ -118,7 +107,7 @@ type GetPathsInfoArgs = {
 export async function getPathsInfo({
   storePath,
   pathNames,
-}: GetPathsInfoArgs): Promise<Record<string, RelevantNixPathInfo>> {
+}: GetPathsInfoArgs): Promise<Record<string, NixPathInfo>> {
   if (pathNames.length === 0) {
     return {};
   }
@@ -168,8 +157,8 @@ type GetPathInfoTreeSearchArgs = {
 export async function getPathInfoTreeSearch({
   storePath,
   rootPathNames,
-}: GetPathInfoTreeSearchArgs): Promise<RelevantNixPathInfo[]> {
-  const pathInfos: RelevantNixPathInfo[] = [];
+}: GetPathInfoTreeSearchArgs): Promise<NixPathInfo[]> {
+  const pathInfos: NixPathInfo[] = [];
 
   let queue = [...rootPathNames];
   const foundPaths = new Set<string>(...rootPathNames);
@@ -209,6 +198,25 @@ export function getPathHashFromPath(itemPath: string) {
   }
 
   return hash;
+}
+
+export function nixPathInfoToNarinfoFileString(info: NixPathInfo) {
+  const lines: string[] = [];
+
+  lines.push(`StorePath: ${info.path}`);
+  lines.push(`URL: ${info.url ?? "virtual_generated"}`);
+  lines.push(`Compression: none`);
+  lines.push(`FileHash: ${info.narHash}`);
+  lines.push(`FileSize: ${info.narSize}`);
+  lines.push(`NarHash: ${info.narHash}`);
+  lines.push(`NarSize: ${info.narSize}`);
+  lines.push(`References: ${info.references.join(" ")}`);
+  lines.push(`Deriver: ${info.deriver ?? "virtual_generated"}`);
+  if (info.signatures) {
+    lines.push(`Sig: ${info.signatures.join(" ")}`);
+  }
+
+  return lines.join("\n") + "\n";
 }
 
 type GetStoreDeltaPathsDeltaArgs = {

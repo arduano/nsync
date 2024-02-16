@@ -12,14 +12,14 @@ import {
   copyOutputToArchive,
   makeArchiveSubset,
 } from "../../utils/nixArchive";
-import { getStoreDeltaPathsDelta } from "../../utils/nixStore";
+import {
+  getPathHashFromPath,
+  getPathInfoTreeSearch,
+  getStoreDeltaPathsDelta,
+  nixPathInfoToNarinfoFileString,
+} from "../../utils/nixStore";
 import path from "path";
 import fs from "fs";
-import { getAbsoluteNarinfoListInDir } from "../../files";
-import {
-  copyNarinfoFilesToCache,
-  getNarinfoFileListForNixPaths,
-} from "../../utils/clientStore";
 
 const loadArchiveDeltaCommandSchema = z.object({
   // Command to "load a partial nix archive into the system"
@@ -163,21 +163,19 @@ async function executeLoadArchiveDeltaCommand(
   // Copy all the narinfo files into the archive
   const absoluteArchivePath = path.join(instructionFolderPath, archivePath);
 
-  const existingNarinfoFilePaths =
-    await getAbsoluteNarinfoListInDir(absoluteArchivePath);
-
-  const narinfoFiles = await getNarinfoFileListForNixPaths({
-    storePath: storePath == "/" ? undefined : storePath,
-    clientStateStorePath,
-    nixPaths: deltaDependencies.map((d) => d.nixPath),
+  const pathInfos = await getPathInfoTreeSearch({
+    rootPathNames: deltaDependencies.map((d) => d.nixPath),
+    storePath,
   });
 
-  for (const narinfoFile of narinfoFiles) {
-    const narinfoFilename = path.basename(narinfoFile);
-
+  for (const info of pathInfos) {
+    const hash = getPathHashFromPath(info.path);
+    const narinfoFilename = `${hash}.narinfo`;
     const destinationPath = path.join(absoluteArchivePath, narinfoFilename);
 
-    await fs.promises.copyFile(narinfoFile, destinationPath);
+    const narinfoText = nixPathInfoToNarinfoFileString(info);
+
+    await fs.promises.writeFile(destinationPath, narinfoText);
   }
 
   progressCallback("Copying nix store items to the store");
@@ -187,13 +185,6 @@ async function executeLoadArchiveDeltaCommand(
     archivePath: absoluteArchivePath,
     item: item.nixPath,
     storePath: storePath == "/" ? undefined : storePath,
-  });
-
-  progressCallback("Updating local config");
-
-  await copyNarinfoFilesToCache({
-    clientStateStorePath,
-    narinfoFilePaths: existingNarinfoFilePaths,
   });
 }
 

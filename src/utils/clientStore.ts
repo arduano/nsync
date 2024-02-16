@@ -1,6 +1,5 @@
 import path from "path";
 import fs from "fs";
-import { z } from "zod";
 import { getPathHashFromPath, getPathInfoTreeSearch } from "./nixStore";
 
 function getClientStateNarinfoCachePath(clientStatePath: string) {
@@ -13,25 +12,6 @@ export function getClientStoreNarinfoCachePathAsStorePath(
   const cacheFolder = getClientStateNarinfoCachePath(clientStatePath);
   return `file://${cacheFolder}`;
 }
-
-const clientStateForSingleStoreConfig = z.object({
-  generations: z.array(
-    z.object({
-      generationLinkName: z.string(),
-      nixPath: z.string(),
-      gitRevision: z.string(),
-    }),
-  ),
-});
-
-const clientStateConfig = z.record(
-  // Record key = store path
-  clientStateForSingleStoreConfig,
-);
-
-type ClientStateForSingleStoreConfig = z.infer<
-  typeof clientStateForSingleStoreConfig
->;
 
 type GetNarinfoFileListForRevisionsArgs = {
   storePath?: string;

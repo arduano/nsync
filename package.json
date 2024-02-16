@@ -6,7 +6,7 @@
   "scripts": {
     "start": "DEV=false yarn tsup && node --enable-source-maps dist/main.js",
     "build": "yarn tsup",
-    "lint-fix": "eslint --fix ."
+    "lint:fix": "eslint --fix ."
   },
   "resolutions": {
     "strip-ansi": "6.0.1"
