@@ -228,27 +228,29 @@ const exec = command({
       instructionPath = ensurePathAbsolute(instructionPath);
       storePath = ensurePathAbsolute(storePath);
 
-      // Make workdir
-      await fs.promises.mkdir(workdirPath, { recursive: true });
+      try {
+        // Make workdir
+        await fs.promises.mkdir(workdirPath, { recursive: true });
 
-      progressCallback("Decompressing instruction");
+        progressCallback("Decompressing instruction");
 
-      // Extract instruction
-      await decompressInstructionDir({
-        destinationDir: workdirPath,
-        instructionPath,
-      });
+        // Extract instruction
+        await decompressInstructionDir({
+          destinationDir: workdirPath,
+          instructionPath,
+        });
 
-      await executeInstructionFolder({
-        instructionFolderPath: workdirPath,
-        storePath,
-        progressCallback,
-      });
+        await executeInstructionFolder({
+          instructionFolderPath: workdirPath,
+          storePath,
+          progressCallback,
+        });
+      } finally {
+        progressCallback("Cleaning up");
 
-      progressCallback("Cleaning up");
-
-      // Cleanup workdir
-      await fs.promises.rm(workdirPath, { recursive: true });
+        // Cleanup workdir
+        await fs.promises.rm(workdirPath, { recursive: true });
+      }
     });
   },
 });
