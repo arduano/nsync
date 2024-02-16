@@ -27,7 +27,7 @@
           runScript = "bash";
         };
 
-        nrunBuiltFile = pkgs.mkYarnPackage {
+        nsyncBuiltFile = pkgs.mkYarnPackage {
           name = "nsync";
           src = ./.;
           packageJson = ./package.json;
@@ -40,7 +40,7 @@
 
           installPhase = ''
             mkdir $out
-            mv deps/nix-sync/dist/main.js $out
+            mv deps/nsync/dist/main.js $out
           '';
 
           doFixup = false;
@@ -50,8 +50,8 @@
         # Build a PATH variable for all deps
         path = pkgs.lib.makeBinPath (fhsDeps pkgs);
 
-        nrun = pkgs.writeShellScriptBin "nrun" ''
-          PATH=${path}:$PATH node ${nrunBuiltFile}/main.js $@
+        nsync = pkgs.writeShellScriptBin "nsync" ''
+          PATH=${path}:$PATH node ${nsyncBuiltFile}/main.js $@
         '';
       in
       {
@@ -59,7 +59,7 @@
         devShell = fhsUserEnv.env;
 
         # Run as package
-        packages.default = nrun;
-        packages.nrun = nrun;
+        packages.default = nsync;
+        packages.nsync = nsync;
       });
 }
