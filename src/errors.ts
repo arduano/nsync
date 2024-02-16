@@ -19,6 +19,8 @@ export async function wrapCommandError<T>(
   } catch (error) {
     if (error instanceof CommandError) {
       // eslint-disable-next-line no-console
+      console.error();
+      // eslint-disable-next-line no-console
       console.error(error.message);
       // eslint-disable-next-line no-console
       console.error(error.description);
@@ -45,7 +47,7 @@ export async function execThirdPartyCommand(
   }
 }
 
-export async function execErrorToCommandError(e: any, failedMessage: string) {
+export function execErrorToCommandError(e: any, failedMessage: string) {
   const command = e.command as string;
   const stdout = e.stdout as string | undefined;
   const stderr = e.stderr as string | undefined;
