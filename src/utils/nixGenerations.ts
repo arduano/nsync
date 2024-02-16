@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import { exists } from "./helpers";
+import { exists } from "../helpers";
 import { execaCommand } from "execa";
 
 export async function getNixStoreGenerations(profilePrefix: string) {

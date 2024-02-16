@@ -3,7 +3,7 @@ import type {
   CommandImplementation,
   InstructionExecutionSharedArgs,
 } from "../schemas";
-import { cleanupOldGenerations } from "../../nixGenerations";
+import { cleanupOldGenerations } from "../../utils/nixGenerations";
 
 const storeCleanupCommandSchema = z.object({
   // Command to "clean up the nix store"

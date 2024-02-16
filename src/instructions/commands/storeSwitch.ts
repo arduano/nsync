@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { buildSystemFlake } from "../../nixFlake";
+import { buildSystemFlake } from "../../utils/nixFlake";
 import type {
   InstructionBuilderSharedArgs,
   CommandImplementation,
   InstructionExecutionSharedArgs,
 } from "../schemas";
 import { storeRoot } from "../schemas";
-import { makeNewSystemGeneration } from "../../nixGenerations";
+import { makeNewSystemGeneration } from "../../utils/nixGenerations";
 
 const storeSwitchCommandSchema = z.object({
   // Command to "apply the nix package as the next generation and switch to it"

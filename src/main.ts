@@ -13,16 +13,16 @@ import {
 
 import fs from "fs";
 
-import { ensurePathAbsolute } from "./utils/helpers";
-import type { BuildCommandArgs } from "./utils/instructions/common";
+import { ensurePathAbsolute } from "./helpers";
+import type { BuildCommandArgs } from "./instructions/common";
 import {
   buildInstructionFolder,
   executeInstructionFolder,
-} from "./utils/instructions/common";
+} from "./instructions/common";
 import {
   compressInstructionDir,
   decompressInstructionDir,
-} from "./utils/instructions/compression";
+} from "./instructions/compression";
 import { customAlphabet } from "nanoid";
 
 const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);

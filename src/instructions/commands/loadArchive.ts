@@ -5,21 +5,21 @@ import type {
   InstructionExecutionSharedArgs,
 } from "../schemas";
 import { storeRoot } from "../schemas";
-import type { FlakeBuildResult } from "../../nixFlake";
-import { buildSystemFlake } from "../../nixFlake";
+import type { FlakeBuildResult } from "../../utils/nixFlake";
+import { buildSystemFlake } from "../../utils/nixFlake";
 import {
   copyArchiveToStore,
   copyOutputToArchive,
   makeArchiveSubset,
-} from "../../nixArchive";
-import { getStoreDeltaPathsDelta } from "../../nixStore";
+} from "../../utils/nixArchive";
+import { getStoreDeltaPathsDelta } from "../../utils/nixStore";
 import path from "path";
 import fs from "fs";
 import { getAbsoluteNarinfoListInDir } from "../../files";
 import {
   copyNarinfoFilesToCache,
   getNarinfoFileListForNixPaths,
-} from "../../clientStore";
+} from "../../utils/clientStore";
 
 const loadArchiveDeltaCommandSchema = z.object({
   // Command to "load a partial nix archive into the system"

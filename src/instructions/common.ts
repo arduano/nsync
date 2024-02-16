@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { doesNixPathExist } from "../nixStore";
-import { getClientStoreNarinfoCachePathAsStorePath } from "../clientStore";
+import { doesNixPathExist } from "../utils/nixStore";
+import { getClientStoreNarinfoCachePathAsStorePath } from "../utils/clientStore";
 import path from "path";
 import fs from "fs";
 import { loadArchiveDeltaCommand } from "./commands/loadArchive";
