@@ -24,6 +24,7 @@
         packages.default = nsync.nsync;
         packages.nsync = nsync.nsync;
 
+        # Export the package in an overlay
         overlay = final: prev: {
           nsync = final.pkgs.callPackage ./package.nix { };
         };
