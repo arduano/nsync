@@ -39,7 +39,7 @@ const loadArchiveDeltaCommandSchema = z.object({
 
 type BuildLoadArchiveDeltaCommandArgs = {
   kind: "load";
-  flakeGitUri: string;
+  flakeUri: string;
   hostname: string;
   archiveFolderName: string;
   deltaDependencyRefs: string[];
@@ -51,7 +51,7 @@ async function buildLoadArchiveDeltaCommand(
   {
     kind,
     archiveFolderName,
-    flakeGitUri,
+    flakeUri,
     hostname,
     deltaDependencyRefs,
     partialNarinfos,
@@ -71,7 +71,7 @@ async function buildLoadArchiveDeltaCommand(
   for (const ref of deltaDependencyRefs) {
     progressCallback(`Building revision ${ref}`);
     const info = await buildSystemFlake({
-      flakeGitUri,
+      flakeUri,
       hostname,
       storeAbsolutePath: workdirStorePath,
       ref,
@@ -85,7 +85,7 @@ async function buildLoadArchiveDeltaCommand(
 
   progressCallback("Building new revision");
   const newRevBuildInfo = await buildSystemFlake({
-    flakeGitUri,
+    flakeUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
     ref: newRev,

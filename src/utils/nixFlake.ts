@@ -2,7 +2,7 @@ import { $, execaCommand } from "execa";
 import { z } from "zod";
 
 type GetFlakeRevisionFromRefArgs = {
-  flakeGitUri: string;
+  flakeUri: string;
   ref?: string;
 };
 
@@ -10,13 +10,13 @@ type GetFlakeRevisionFromRefArgs = {
  * Given a path and a git ref, get the git revision of the flake.
  */
 export async function getRevisionFromRef({
-  flakeGitUri,
+  flakeUri,
   ref,
 }: GetFlakeRevisionFromRefArgs) {
   let refArg = ref ? `?ref=${ref}` : "";
 
   const result = await execaCommand(
-    `nix flake info --json ${flakeGitUri}${refArg}`
+    `nix flake metadata --json ${flakeUri}${refArg}`
   );
   if (result.failed) {
     throw new Error(result.stderr);
@@ -30,18 +30,18 @@ export async function getRevisionFromRef({
 }
 
 type GetFlakeExportsArgs = {
-  flakeGitUri: string;
+  flakeUri: string;
   rev?: string;
 };
 
 /**
  * Given a path and a revision, get the `nix flake show` result of the flake, which generally shows all the flake exports.
  */
-export async function getFlakeInfo({ flakeGitUri, rev }: GetFlakeExportsArgs) {
+export async function getFlakeInfo({ flakeUri, rev }: GetFlakeExportsArgs) {
   let revArg = rev ? `?rev=${rev}` : "";
 
   const result = await execaCommand(
-    `nix flake show --json ${flakeGitUri}${revArg}`
+    `nix flake show --json ${flakeUri}${revArg}`
   );
   if (result.failed) {
     throw new Error(result.stderr);
@@ -55,7 +55,7 @@ export async function getFlakeInfo({ flakeGitUri, rev }: GetFlakeExportsArgs) {
 }
 
 type GetFlakeHostnamesArgs = {
-  flakeGitUri: string;
+  flakeUri: string;
   rev?: string;
 };
 
@@ -67,10 +67,10 @@ const configurationsSchema = z.object({
  * Given a path and a revision, get the hostnames of the flake.
  */
 export async function getFlakeHostnames({
-  flakeGitUri,
+  flakeUri,
   rev,
 }: GetFlakeHostnamesArgs) {
-  const flakeInfo = await getFlakeInfo({ flakeGitUri, rev });
+  const flakeInfo = await getFlakeInfo({ flakeUri, rev });
   const parsed = configurationsSchema.safeParse(flakeInfo);
   if (!parsed.success) {
     throw new Error(parsed.error.message);
@@ -118,7 +118,7 @@ export async function checkFlakeDirty({ absolutePath }: CheckFlakeDirtyArgs) {
 }
 
 type BuildFlakeArgs = {
-  flakeGitUri: string;
+  flakeUri: string;
   storeAbsolutePath: string;
   hostname: string;
   ref?: string;
@@ -140,14 +140,14 @@ const flakeBuildCommandResult = z
  * If rev is not provided, it defaults to the current revision.
  */
 export async function buildSystemFlake({
-  flakeGitUri,
+  flakeUri,
   hostname,
   ref,
   storeAbsolutePath: buildPath,
 }: BuildFlakeArgs) {
-  const gitRev = await getRevisionFromRef({ flakeGitUri, ref });
+  const gitRev = await getRevisionFromRef({ flakeUri, ref });
 
-  let hostnames = await getFlakeHostnames({ flakeGitUri, rev: gitRev });
+  let hostnames = await getFlakeHostnames({ flakeUri, rev: gitRev });
 
   if (!hostnames.includes(hostname)) {
     throw new Error(
@@ -161,7 +161,7 @@ export async function buildSystemFlake({
   const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
 
   const command = execaCommand(
-    `nix build --json --no-link --store ${nixStoreRoot} ${flakeGitUri}?rev=${gitRev}#${attr}`,
+    `nix build --json --no-link --store ${nixStoreRoot} ${flakeUri}?rev=${gitRev}#${attr}`,
     {
       stderr: "inherit",
     }

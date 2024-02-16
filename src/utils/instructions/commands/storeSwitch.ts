@@ -17,20 +17,20 @@ const storeSwitchCommandSchema = z.object({
 
 type BuildStoreSwitchCommandArgs = {
   kind: "switch";
-  flakeGitUri: string;
+  flakeUri: string;
   hostname: string;
   ref: string;
   mode: "immediate" | "next-reboot";
 };
 
 async function buildStoreSwitchCommand(
-  { kind, flakeGitUri, hostname, ref, mode }: BuildStoreSwitchCommandArgs,
+  { kind, flakeUri, hostname, ref, mode }: BuildStoreSwitchCommandArgs,
   { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs
 ): Promise<z.infer<typeof storeSwitchCommandSchema>> {
   progressCallback("Building switch command");
 
   const buildInfo = await buildSystemFlake({
-    flakeGitUri,
+    flakeUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
     ref: ref,

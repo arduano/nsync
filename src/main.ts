@@ -6,6 +6,9 @@ import {
   flag,
   option,
   subcommands,
+  array,
+  multioption,
+  optional,
 } from "cmd-ts";
 import {
   FlakeBuildResult,
@@ -52,8 +55,11 @@ import {
   compressInstructionDir,
   decompressInstructionDir,
 } from "./utils/instructions/compression";
+import { customAlphabet, nanoid } from "nanoid";
 
-const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
+const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);
+
+// const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 
 // Base = e7a4e422fed320cbd580669d142fd8f538edac89
 // Python+opencv = 1fe3947a35dd67dcc1ca1fd813070c8fb7b19b8d
@@ -63,41 +69,126 @@ const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
 // Base 2 with `hello` = f76088a37336f3226065a6405b81494b06eced20
 
 // const pastRevs = ["5e93f72a2a85affa0eb4f6106b00b08c75c93475"];
-const pastRevs: string[] = ["bb60c1fc88e454cceed98ec3af0e0750481536b5"];
-const newRev = "f76088a37336f3226065a6405b81494b06eced20";
-const hostname = "testvm";
+// const pastRevs: string[] = ["bb60c1fc88e454cceed98ec3af0e0750481536b5"];
+// const newRev = "f76088a37336f3226065a6405b81494b06eced20";
+// const hostname = "testvm";
 
-const dummy = command({
-  name: "dummy command for testing",
+function splitFlakeArgToUriAndHostname(flake: string) {
+  if (!flake.includes("#")) {
+    throw new Error(
+      "Invalid flake address. A hostname is required, e.g. `github:owner/repo#hostname` or `/path/to/flake#hostname`"
+    );
+  }
+
+  const [uri, hostname] = flake.split("#");
+
+  if (hostname.includes("?")) {
+    throw new Error(
+      "Invalid flake address. Query strings aren't supported in flake addresses in nsync."
+    );
+  }
+
+  return [uri, hostname] as const;
+}
+
+function getWorkdirFromFlakeArg(flake: string) {
+  // If the flake is a local path, then the workdir is path/.nsync
+  // A flake path is local if there is no `:` in the path.
+
+  if (flake.includes(":")) {
+    return undefined;
+  }
+
+  const [path, _] = flake.split("#");
+  const absolutePath = ensurePathAbsolute(path);
+
+  return `${absolutePath}/.nsync`;
+}
+
+const create = command({
+  name: "create",
+  description:
+    "Create a new system build instruction, specifying the new git ref and the other git refs it depends on.",
   args: {
-    // someArg: positional({ type: string, displayName: "some arg" }),
+    flakeUriWithHostname: positional({
+      type: string,
+      description:
+        "The location and hostname of the flake. Uses nix-like flake addresses, e.g. `github:owner/repo#hostname`",
+    }),
+    output: option({
+      type: string,
+      long: "output",
+      short: "o",
+      description: "The output path. The format is a .tar.xz file.",
+    }),
+    workdirPath: option({
+      type: optional(string),
+      long: "workdir",
+      short: "w",
+      description:
+        "The working directory path, where the nix store is built and the instruction is built before being compressed. Defaults to `.nsync` inside the flake's directory, or if the flake is remote, then this is a required argument.",
+    }),
+    dependencyRefs: multioption({
+      type: array(string),
+      long: "deps",
+      short: "d",
+      description:
+        "The git refs that the new system build depends on. Only the changes will be transferred. Defaults to no dependencies, building the full system.",
+    }),
+    newRef: option({
+      type: string,
+      long: "new",
+      short: "n",
+      description:
+        "The new git ref to build the system with. This is the ref that the system will switch to after the instruction is executed.",
+    }),
+    reboot: flag({
+      long: "reboot",
+      short: "r",
+      description:
+        "Reboot the receiving system after the instruction is executed",
+    }),
   },
-  handler: async ({}) => {
-    const reboot = false;
+  handler: async ({
+    flakeUriWithHostname,
+    workdirPath,
+    reboot,
+    dependencyRefs,
+    newRef,
+    output,
+  }) => {
+    const [flakeUri, hostname] =
+      splitFlakeArgToUriAndHostname(flakeUriWithHostname);
+    const guessedWorkdirPath = getWorkdirFromFlakeArg(flakeUri);
 
-    // let flakeGitUri = `git+file://${absolutePath}`;
-    let flakeGitUri = `github:arduano/test-vm-nix`;
+    if (!guessedWorkdirPath && !workdirPath) {
+      throw new Error(
+        "If the flake is remote, then the workdir path is required. Use the --workdir or -w option."
+      );
+    }
 
-    const workdirStorePath = `${absolutePath}/.nix`;
-    const workdirArchivePath = `${absolutePath}/.nix/archive`;
-    const instructionFolderPath = `${absolutePath}/.nix/tmp/instruction_workdir`;
+    workdirPath = workdirPath || guessedWorkdirPath!;
+
+    const workdirStorePath = `${workdirPath}`;
+    const workdirArchivePath = `${workdirPath}/archive`;
+    const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
 
     const buildArgs: BuildCommandArgs[] = [];
     buildArgs.push({
       kind: "load",
       archiveFolderName: "archive",
-      deltaDependencyRefs: pastRevs,
+      deltaDependencyRefs: dependencyRefs,
       partialNarinfos: true,
-      newRef: newRev,
+      newRef,
       hostname,
-      flakeGitUri,
+      flakeUri,
     });
     buildArgs.push({
       kind: "switch",
       mode: "immediate",
-      flakeGitUri,
+      flakeUri,
       hostname,
-      ref: newRev,
+      ref: newRef,
     });
 
     if (reboot) {
@@ -107,6 +198,7 @@ const dummy = command({
       });
     }
 
+    // Build the instruction
     await buildInstructionFolder(buildArgs, {
       instructionFolderPath,
       workdirStorePath,
@@ -116,56 +208,46 @@ const dummy = command({
       },
     });
 
+    // Compress the instruction
     await compressInstructionDir({
-      destinationPath: `${absolutePath}/.nix/instruction_increment.tar.xz`,
+      destinationPath: output,
       instructionDir: instructionFolderPath,
     });
+
+    // Cleanup
+    await fs.promises.rm(instructionFolderPath, { recursive: true });
   },
 });
 
-const cmd = command({
-  name: "my number",
-  args: {
-    myNumber: option({
-      type: string,
-      long: "my-number",
-      short: "n",
-    }),
-  },
-  handler: async ({ myNumber }) => {},
-});
-
-const dummy2 = command({
-  name: "dummy command for testing",
+const exec = command({
+  name: "Execute an instruction from an archive",
   args: {
     workdirPath: option({
-      type: string,
+      type: optional(string),
       long: "workdir",
-      description: "workdir path",
-      defaultValue: () => `${absolutePath}/.nix/tmp/installer-workdir`,
+      short: "w",
+      description:
+        "The work directory to extract the instruction to. Defaults to a folder inside /tmp",
     }),
     instructionPath: option({
       type: string,
       long: "instruction",
-      description: "instruction path",
-      // defaultValue: () => `${absolutePath}/.nix/instruction_increment.tar.xz`,
-      defaultValue: () => `${absolutePath}/.nix/instruction_full.tar.xz`,
+      short: "i",
+      description: "The instruction to execute. This is a .tar.xz file.",
     }),
     storePath: option({
       type: string,
       long: "store",
-      description: "store path",
-      defaultValue: () => `${absolutePath}/.nix2`,
+      short: "s",
+      description: "The store path to write to. Defaults to /",
+      defaultValue: () => "/",
     }),
     clientStateStorePath: option({
       type: string,
-      long: "clientState",
-      description: "client state path",
-      defaultValue: () => `${absolutePath}/.nix/tmp/client-state-store`,
-    }),
-    addGeneration: flag({
-      long: "add-gen",
-      description: "Add a generation to the store with the new system build",
+      long: "client-state",
+      short: "c",
+      description: "The client state path. Defaults to /var/lib/nsync",
+      defaultValue: () => "/var/lib/nsync",
     }),
   },
   handler: async ({
@@ -173,8 +255,9 @@ const dummy2 = command({
     instructionPath,
     clientStateStorePath,
     storePath,
-    addGeneration,
   }) => {
+    workdirPath = workdirPath || `/tmp/nsync-${fileId()}`;
+
     workdirPath = ensurePathAbsolute(workdirPath);
     instructionPath = ensurePathAbsolute(instructionPath);
     clientStateStorePath = ensurePathAbsolute(clientStateStorePath);
@@ -207,191 +290,9 @@ const dummy2 = command({
   },
 });
 
-const dummy3 = command({
-  name: "dummy command for testing",
-  args: {
-    workdirPath: option({
-      type: string,
-      long: "workdir",
-      description: "workdir path",
-      defaultValue: () => `${absolutePath}/.nix/tmp/installer-workdir`,
-    }),
-    instructionPath: option({
-      type: string,
-      long: "instruction",
-      description: "instruction path",
-      // defaultValue: () => `${absolutePath}/.nix/instruction_increment.tar.xz`,
-      defaultValue: () => `${absolutePath}/.nix/instruction_full.tar.xz`,
-    }),
-    storePath: option({
-      type: string,
-      long: "store",
-      description: "store path",
-      defaultValue: () => `${absolutePath}/.nix2`,
-    }),
-    clientStateStorePath: option({
-      type: string,
-      long: "clientState",
-      description: "client state path",
-      defaultValue: () => `${absolutePath}/.nix/tmp/client-state-store`,
-    }),
-    addGeneration: flag({
-      long: "add-gen",
-      description: "Add a generation to the store with the new system build",
-    }),
-  },
-  handler: async ({
-    workdirPath,
-    instructionPath,
-    clientStateStorePath,
-    storePath,
-    addGeneration,
-  }) => {
-    workdirPath = ensurePathAbsolute(workdirPath);
-    instructionPath = ensurePathAbsolute(instructionPath);
-    clientStateStorePath = ensurePathAbsolute(clientStateStorePath);
-    storePath = ensurePathAbsolute(storePath);
-
-    // Make workdir
-    await fs.promises.mkdir(workdirPath, { recursive: true });
-
-    console.log("Decompressing instruction");
-
-    // Extract instruction
-    await decompressInstructionDir({
-      destinationDir: workdirPath,
-      instructionPath,
-    });
-
-    // Read instruction
-    const instruction = await readDirInstruction(workdirPath);
-
-    if (instruction.kind !== "switch") {
-      throw new Error("Invalid instruction kind");
-    }
-
-    // Ensure that all the dependent nix paths are in both the store and the client state store
-    let dependentNixPaths = instruction.deltaDependencies.map((d) => d.nixPath);
-    for (let dependentPath of dependentNixPaths) {
-      try {
-        await getPathInfo({
-          storePath: storePath == "/" ? undefined : storePath,
-          pathName: dependentPath,
-        });
-      } catch (e) {
-        console.error(
-          "Failed to execute instruction because a dependent derivation is missing in the nix store"
-        );
-        console.error("Dependent path: " + dependentPath);
-        return 1;
-      }
-
-      try {
-        let storePath =
-          getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
-        await getPathInfo({
-          storePath,
-          pathName: dependentPath,
-        });
-      } catch (e) {
-        console.error(
-          "Failed to execute instruction because a dependent derivation is missing in the client state store"
-        );
-        console.error("Dependent path: " + dependentPath);
-        return 1;
-      }
-    }
-
-    await assertInstructionDirValid(workdirPath);
-
-    // Copy all the narinfo files into the archive
-    const archivePath = path.join(workdirPath, instruction.item.archivePath);
-
-    const existingNarinfoFilePaths = await getAbsoluteNarinfoListInDir(
-      archivePath
-    );
-
-    const narinfoFiles = await getNarinfoFileListForNixPaths({
-      storePath: storePath == "/" ? undefined : storePath,
-      clientStateStorePath: clientStateStorePath,
-      nixPaths: instruction.deltaDependencies.map((d) => d.nixPath),
-    });
-
-    for (const narinfoFile of narinfoFiles) {
-      const narinfoFilename = path.basename(narinfoFile);
-
-      const destinationPath = path.join(archivePath, narinfoFilename);
-
-      await fs.promises.copyFile(narinfoFile, destinationPath);
-    }
-
-    console.log("Copying nix store items to the store");
-
-    // Copy the item into the store
-    await copyArchiveToStore({
-      archivePath,
-      item: instruction.item.itemPath,
-      storePath: storePath == "/" ? undefined : storePath,
-    });
-
-    console.log("Updating local config");
-
-    await copyNarinfoFilesToCache({
-      clientStateStorePath,
-      narinfoFilePaths: existingNarinfoFilePaths,
-    });
-
-    console.log("Updating system generations");
-
-    await makeNewSystemGeneration({
-      storePath,
-      nixItemPath: instruction.item.itemPath,
-      executeActivation: addGeneration ? "switch" : undefined,
-    });
-
-    console.log("Cleaning up");
-
-    // Cleanup workdir
-    await fs.promises.rm(workdirPath, { recursive: true });
-  },
-});
-
-const build = command({
-  name: "build the current flake, nothing else",
-  args: {
-    // someArg: positional({ type: string, displayName: "some arg" }),
-  },
-  handler: async ({}) => {
-    const nixStorePath = `${absolutePath}/.nix`;
-    const tempWorkdirPath = `${nixStorePath}/tmp`;
-    const nixArchivePath = `${nixStorePath}/archive`;
-
-    console.log("Building");
-
-    const newRevBuildInfo = await buildSystemFlake({
-      flakeAbsolutePath: absolutePath,
-      hostname,
-      storeAbsolutePath: nixStorePath,
-    });
-  },
-});
-
-const listGenerations = command({
-  name: "list the generations",
-  args: {
-    // someArg: positional({ type: string, displayName: "some arg" }),
-  },
-  handler: async ({}) => {
-    const generations = await getNixStoreGenerations(
-      "/nix/var/nix/profiles/system"
-    );
-    console.log(generations);
-  },
-});
-
 const app = subcommands({
-  name: "Nix remote transfer",
-  cmds: { dummy, dummy2, dummy3, build, listGenerations },
+  name: "Nix TCP-less remote transfer",
+  cmds: { create, exec },
 });
 
 run(app, process.argv.slice(2));

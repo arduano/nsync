@@ -20,7 +20,8 @@ export async function compressInstructionDir({
     throw new Error("Failed to get stdout for tar");
   }
 
-  const xzCompressCommand = execaCommand(`xz -zce -9 -`, {
+  // Don't need strong compression, as most of the items are already compressed
+  const xzCompressCommand = execaCommand(`xz -zc -2 -`, {
     stdin: tarFilesCommand.stdout,
     stdout: "pipe",
     stderr: "inherit",
