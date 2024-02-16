@@ -221,7 +221,6 @@ export function nixPathInfoToNarinfoFileString(info: NixPathInfo) {
   lines.push(`NarHash: ${info.narHash}`);
   lines.push(`NarSize: ${info.narSize}`);
   lines.push(`References: ${references.join(" ")}`);
-  lines.push(`Deriver: ${info.deriver ?? "virtual_generated"}`);
   if (info.signatures) {
     lines.push(`Sig: ${info.signatures.join(" ")}`);
   }
