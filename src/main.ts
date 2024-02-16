@@ -105,6 +105,12 @@ function getWorkdirFromFlakeArg(flake: string) {
   return `${absolutePath}/.nsync`;
 }
 
+function isRoot() {
+  const hasVar = !!process.env.SUDO_UID; // SUDO_UID is undefined when not root
+  const rootUid = process.getuid?.() == 0; // getuid() returns 0 for root
+  return hasVar || rootUid;
+}
+
 const create = command({
   name: "create",
   description:
@@ -256,6 +262,12 @@ const exec = command({
     clientStateStorePath,
     storePath,
   }) => {
+    if (!isRoot()) {
+      throw new Error(
+        "This command must be run as root, as it will write to the nix store."
+      );
+    }
+
     workdirPath = workdirPath || `/tmp/nsync-${fileId()}`;
 
     workdirPath = ensurePathAbsolute(workdirPath);
