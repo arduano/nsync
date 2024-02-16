@@ -24,35 +24,24 @@ import {
   decompressInstructionDir,
 } from "./instructions/compression";
 import { customAlphabet } from "nanoid";
+import { CommandError, wrapCommandError } from "./errors";
 
 const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);
 
-// const absolutePath = "/home/arduano/programming/spiralblue/vms/test-flake";
-
-// Base = e7a4e422fed320cbd580669d142fd8f538edac89
-// Python+opencv = 1fe3947a35dd67dcc1ca1fd813070c8fb7b19b8d
-// Python = e61616302545726f0f429a45d166d1cd794357ac
-
-// Base 2 = bb60c1fc88e454cceed98ec3af0e0750481536b5
-// Base 2 with `hello` = f76088a37336f3226065a6405b81494b06eced20
-
-// const pastRevs = ["5e93f72a2a85affa0eb4f6106b00b08c75c93475"];
-// const pastRevs: string[] = ["bb60c1fc88e454cceed98ec3af0e0750481536b5"];
-// const newRev = "f76088a37336f3226065a6405b81494b06eced20";
-// const hostname = "testvm";
-
 function splitFlakeArgToUriAndHostname(flake: string) {
   if (!flake.includes("#")) {
-    throw new Error(
-      "Invalid flake address. A hostname is required, e.g. `github:owner/repo#hostname` or `/path/to/flake#hostname`",
+    throw new CommandError(
+      `Invalid flake address: "${flake}"`,
+      "A hostname is required, e.g. `github:owner/repo#hostname` or `/path/to/flake#hostname`",
     );
   }
 
   const [uri, hostname] = flake.split("#");
 
   if (hostname.includes("?")) {
-    throw new Error(
-      "Invalid flake address. Query strings aren't supported in flake addresses in nsync.",
+    throw new CommandError(
+      `Invalid flake address: "${flake}"`,
+      "Query strings aren't supported in flake addresses in nsync. Use the flake uri and hostname, e.g. `github:owner/repo#hostname` or `/path/to/flake#hostname`",
     );
   }
 
@@ -131,66 +120,69 @@ const create = command({
     newRef,
     output,
   }) => {
-    const [flakeUri, hostname] =
-      splitFlakeArgToUriAndHostname(flakeUriWithHostname);
-    const guessedWorkdirPath = getWorkdirFromFlakeArg(flakeUri);
+    return wrapCommandError(async () => {
+      const [flakeUri, hostname] =
+        splitFlakeArgToUriAndHostname(flakeUriWithHostname);
+      const guessedWorkdirPath = getWorkdirFromFlakeArg(flakeUri);
 
-    if (!guessedWorkdirPath && !workdirPath) {
-      throw new Error(
-        "If the flake is remote, then the workdir path is required. Use the --workdir or -w option.",
-      );
-    }
+      if (!guessedWorkdirPath && !workdirPath) {
+        throw new CommandError(
+          "Used a remote flake without specifying a workdir",
+          "If the flake is remote, then the workdir path is required. Use the --workdir or -w option. Local flakes default the workdir to './.nsync' inside the flake's directory.",
+        );
+      }
 
-    workdirPath = workdirPath || guessedWorkdirPath!;
+      workdirPath = workdirPath || guessedWorkdirPath!;
 
-    const workdirStorePath = `${workdirPath}`;
-    const workdirArchivePath = `${workdirPath}/archive`;
-    const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
+      const workdirStorePath = `${workdirPath}`;
+      const workdirArchivePath = `${workdirPath}/archive`;
+      const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
 
-    const buildArgs: BuildCommandArgs[] = [];
-    buildArgs.push({
-      kind: "load",
-      archiveFolderName: "archive",
-      deltaDependencyRefs: dependencyRefs,
-      partialNarinfos: true,
-      newRef,
-      hostname,
-      flakeUri,
-    });
-    buildArgs.push({
-      kind: "switch",
-      mode: "immediate",
-      flakeUri,
-      hostname,
-      ref: newRef,
-    });
-
-    if (reboot) {
+      const buildArgs: BuildCommandArgs[] = [];
       buildArgs.push({
-        kind: "reboot",
-        delay: 5,
+        kind: "load",
+        archiveFolderName: "archive",
+        deltaDependencyRefs: dependencyRefs,
+        partialNarinfos: true,
+        newRef,
+        hostname,
+        flakeUri,
       });
-    }
+      buildArgs.push({
+        kind: "switch",
+        mode: "immediate",
+        flakeUri,
+        hostname,
+        ref: newRef,
+      });
 
-    // Build the instruction
-    await buildInstructionFolder(buildArgs, {
-      instructionFolderPath,
-      workdirStorePath,
-      workdirArchivePath,
-      progressCallback: (progress) => {
-        // eslint-disable-next-line no-console
-        console.warn(progress);
-      },
+      if (reboot) {
+        buildArgs.push({
+          kind: "reboot",
+          delay: 5,
+        });
+      }
+
+      // Build the instruction
+      await buildInstructionFolder(buildArgs, {
+        instructionFolderPath,
+        workdirStorePath,
+        workdirArchivePath,
+        progressCallback: (progress) => {
+          // eslint-disable-next-line no-console
+          console.warn(progress);
+        },
+      });
+
+      // Compress the instruction
+      await compressInstructionDir({
+        destinationPath: output,
+        instructionDir: instructionFolderPath,
+      });
+
+      // Cleanup
+      await fs.promises.rm(instructionFolderPath, { recursive: true });
     });
-
-    // Compress the instruction
-    await compressInstructionDir({
-      destinationPath: output,
-      instructionDir: instructionFolderPath,
-    });
-
-    // Cleanup
-    await fs.promises.rm(instructionFolderPath, { recursive: true });
   },
 });
 
@@ -231,46 +223,49 @@ const exec = command({
     clientStateStorePath,
     storePath,
   }) => {
-    if (!isRoot()) {
-      throw new Error(
-        "This command must be run as root, as it will write to the nix store.",
-      );
-    }
+    return wrapCommandError(async () => {
+      if (!isRoot()) {
+        throw new CommandError(
+          "This command must be run as root",
+          "Root access is required, as this command will write to the nix store, and modify system generations.",
+        );
+      }
 
-    const progressCallback = (progress: string) => {
-      // eslint-disable-next-line no-console
-      console.warn(progress);
-    };
+      const progressCallback = (progress: string) => {
+        // eslint-disable-next-line no-console
+        console.warn(progress);
+      };
 
-    workdirPath = workdirPath || `/tmp/nsync-${fileId()}`;
+      workdirPath = workdirPath || `/tmp/nsync-${fileId()}`;
 
-    workdirPath = ensurePathAbsolute(workdirPath);
-    instructionPath = ensurePathAbsolute(instructionPath);
-    clientStateStorePath = ensurePathAbsolute(clientStateStorePath);
-    storePath = ensurePathAbsolute(storePath);
+      workdirPath = ensurePathAbsolute(workdirPath);
+      instructionPath = ensurePathAbsolute(instructionPath);
+      clientStateStorePath = ensurePathAbsolute(clientStateStorePath);
+      storePath = ensurePathAbsolute(storePath);
 
-    // Make workdir
-    await fs.promises.mkdir(workdirPath, { recursive: true });
+      // Make workdir
+      await fs.promises.mkdir(workdirPath, { recursive: true });
 
-    progressCallback("Decompressing instruction");
+      progressCallback("Decompressing instruction");
 
-    // Extract instruction
-    await decompressInstructionDir({
-      destinationDir: workdirPath,
-      instructionPath,
+      // Extract instruction
+      await decompressInstructionDir({
+        destinationDir: workdirPath,
+        instructionPath,
+      });
+
+      await executeInstructionFolder({
+        clientStateStorePath,
+        instructionFolderPath: workdirPath,
+        storePath,
+        progressCallback,
+      });
+
+      progressCallback("Cleaning up");
+
+      // Cleanup workdir
+      await fs.promises.rm(workdirPath, { recursive: true });
     });
-
-    await executeInstructionFolder({
-      clientStateStorePath,
-      instructionFolderPath: workdirPath,
-      storePath,
-      progressCallback,
-    });
-
-    progressCallback("Cleaning up");
-
-    // Cleanup workdir
-    await fs.promises.rm(workdirPath, { recursive: true });
   },
 });
 

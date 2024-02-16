@@ -1,5 +1,6 @@
 import { execaCommand } from "execa";
 import { z } from "zod";
+import { CommandError } from "../errors";
 
 type GetFlakeRevisionFromRefArgs = {
   flakeUri: string;
@@ -19,14 +20,30 @@ export async function getRevisionFromRef({
     `nix flake metadata --json ${flakeUri}${refArg}`,
   );
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      `Failed to get the flake git revision from git ref "${ref}"`,
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 
+  let rev: string | undefined;
   try {
-    return JSON.parse(result.stdout).revision as string;
+    rev = JSON.parse(result.stdout).revision as string | undefined;
   } catch (e) {
-    throw new Error(`Failed to parse flake info JSON: ${result.stdout}`);
+    throw new CommandError(
+      `Failed to get the flake git revision from git ref "${ref}"`,
+      `Failed to extract the revision from the flake info JSON: ${result.stdout}`,
+    );
   }
+
+  if (!rev) {
+    throw new CommandError(
+      `Failed to get the flake git revision from git ref "${ref}"`,
+      `No revision found in the flake info JSON: ${result.stdout}`,
+    );
+  }
+
+  return rev;
 }
 
 type GetFlakeExportsArgs = {
@@ -44,13 +61,19 @@ export async function getFlakeInfo({ flakeUri, rev }: GetFlakeExportsArgs) {
     `nix flake show --json ${flakeUri}${revArg}`,
   );
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      "Failed to get flake info",
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 
   try {
     return JSON.parse(result.stdout);
   } catch (e) {
-    throw new Error(`Failed to parse flake info JSON: ${result.stdout}`);
+    throw new CommandError(
+      "Failed to get flake info",
+      `Failed to parse the flake info JSON: ${result.stdout}`,
+    );
   }
 }
 
@@ -73,7 +96,10 @@ export async function getFlakeHostnames({
   const flakeInfo = await getFlakeInfo({ flakeUri, rev });
   const parsed = configurationsSchema.safeParse(flakeInfo);
   if (!parsed.success) {
-    throw new Error(parsed.error.message);
+    throw new CommandError(
+      "Failed to get flake hostnames",
+      `Failed to parse the flake info JSON: ${parsed.error.message}`,
+    );
   }
 
   const configurations = parsed.data.nixosConfigurations;
@@ -118,10 +144,11 @@ export async function buildSystemFlake({
   const hostnames = await getFlakeHostnames({ flakeUri, rev: gitRev });
 
   if (!hostnames.includes(hostname)) {
-    throw new Error(
-      `No flake configuration found for hostname: ${hostname}. Available hostnames: ${hostnames.join(
-        ", ",
-      )}`,
+    const knownHostnames =
+      hostnames.length > 0 ? hostnames.join(", ") : "(none)";
+    throw new CommandError(
+      `Failed to build system flake for hostname "${hostname}"`,
+      `No flake configuration found for hostname: ${hostname}. Available hostnames: ${knownHostnames}`,
     );
   }
 
@@ -139,7 +166,10 @@ export async function buildSystemFlake({
   const result = await command;
 
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      "Failed to build system flake",
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 
   try {
@@ -155,7 +185,10 @@ export async function buildSystemFlake({
 
     return parsed;
   } catch (e) {
-    throw new Error(`Error parsing flake build command result: ${e}`);
+    throw new CommandError(
+      "Failed to build system flake",
+      `Failed to parse the flake build command JSON: ${result.stdout}`,
+    );
   }
 }
 

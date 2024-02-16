@@ -1,5 +1,6 @@
 import { execaCommand } from "execa";
 import fs from "fs";
+import { CommandError } from "../errors";
 
 type CompressInstructionDirArgs = {
   instructionDir: string;
@@ -17,7 +18,10 @@ export async function compressInstructionDir({
   });
 
   if (!tarFilesCommand.stdout) {
-    throw new Error("Failed to get stdout for tar");
+    throw new CommandError(
+      "Failed to compress instruction",
+      "Failed to get stdout from the tar command",
+    );
   }
 
   // Don't need strong compression, as most of the items are already compressed
@@ -29,7 +33,10 @@ export async function compressInstructionDir({
   });
 
   if (!xzCompressCommand.stdout) {
-    throw new Error("Failed to get stdout for xz");
+    throw new CommandError(
+      "Failed to compress instruction",
+      "Failed to get stdout from the xz command",
+    );
   }
 
   if (destinationPath === "-") {
@@ -60,7 +67,10 @@ export async function decompressInstructionDir({
   });
 
   if (!xzDecompressCommand.stdout) {
-    throw new Error("Failed to get stdout for xz");
+    throw new CommandError(
+      "Failed to decompress instruction",
+      "Failed to get stdout from the xz command",
+    );
   }
 
   const tarExtractCommand = execaCommand(`tar -xf - -C ${destinationDir}`, {

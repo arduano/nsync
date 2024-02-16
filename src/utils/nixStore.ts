@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { execaCommand } from "execa";
+import { CommandError } from "../errors";
 
 const pathInfoValidData = z.object({
   ca: z.string().optional(),
@@ -74,12 +75,18 @@ export async function getPathInfo({
     `nix path-info --json ${storeArg} ${pathName}`,
   );
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      "Failed to get store path info",
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {
-    throw new Error(parsed.error.message);
+    throw new CommandError(
+      "Failed to get store path info",
+      `Failed to parse the store path info JSON: ${parsed.error.message}`,
+    );
   }
 
   return mapParsedPathInfoToRelevantPathInfo(parsed.data[0]);
@@ -127,12 +134,18 @@ export async function getPathsInfo({
     `nix path-info --json ${storeArg} ${pathNames.join(" ")}`,
   );
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      "Failed to get store path info",
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {
-    throw new Error(parsed.error.message);
+    throw new CommandError(
+      "Failed to get store path info",
+      `Failed to parse the store path info JSON: ${parsed.error.message}`,
+    );
   }
 
   const entries = parsed.data.map((item) => [
@@ -145,8 +158,9 @@ export async function getPathsInfo({
   // Ensure all paths are present
   for (const pathName of pathNames) {
     if (!map[pathName]) {
-      throw new Error(
-        `Could not find path info for ${pathName}, it's likely absent`,
+      throw new CommandError(
+        "Failed to get store path info",
+        `Could not find path info for "${pathName}", it's likely absent`,
       );
     }
   }
@@ -199,7 +213,10 @@ export function getPathHashFromPath(itemPath: string) {
   const hash = itemPath.split("/").pop()?.split("-")[0];
 
   if (!hash) {
-    throw new Error(`Could not get hash from item path: ${itemPath}`);
+    throw new CommandError(
+      "Failed analysing store dependencies",
+      `Could not get hash from item path: ${itemPath}`,
+    );
   }
 
   return hash;

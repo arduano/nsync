@@ -2,6 +2,7 @@ import { execaCommand } from "execa";
 import fs from "fs";
 import path from "path";
 import { getPathHashFromPath, getPathsInfo } from "./nixStore";
+import { CommandError } from "../errors";
 
 type CopyOutputToArchiveArgs = {
   storePath?: string;
@@ -28,7 +29,10 @@ export async function copyOutputToArchive({
   const result = await command;
 
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      "Failed to copy a store path to an archive",
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 }
 
@@ -75,7 +79,10 @@ export async function makeArchiveSubset({
   for (const info of Object.values(archiveDataItemInfos)) {
     const url = info.url;
     if (!url) {
-      throw new Error(`No url in archive for data item ${info.path}`);
+      throw new CommandError(
+        "Failed to make a partial archive for instruction",
+        `No url in the archive for data item ${info.path}`,
+      );
     }
 
     const urlFolder = path.dirname(url);
@@ -113,6 +120,9 @@ export async function copyArchiveToStore({
   const result = await command;
 
   if (result.failed) {
-    throw new Error(result.stderr);
+    throw new CommandError(
+      "Failed to copy an archive to the store",
+      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
+    );
   }
 }

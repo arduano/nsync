@@ -13,6 +13,7 @@ import type {
   InstructionBuilderSharedArgs,
   InstructionExecutionSharedArgs,
 } from "./schemas";
+import { CommandError } from "../errors";
 
 const commandList = [
   loadArchiveDeltaCommand,
@@ -46,7 +47,7 @@ export async function assertInstructionCanBeApplied({
   storePath,
   clientStateStorePath,
   instruction,
-}: AssertInstructionCanBeAppliedArgs): Promise<Error | undefined> {
+}: AssertInstructionCanBeAppliedArgs) {
   const addedNixPaths: string[] = [];
 
   const hasStorePath = async (path: string) => {
@@ -88,8 +89,9 @@ export async function assertInstructionCanBeApplied({
           // Check store path
           const storePathExists = await hasStorePath(dep.nixPath);
           if (!storePathExists) {
-            return new Error(
-              `Failed to execute "load" instruction because a dependent derivation is missing in the nix store: ${dep.nixPath}`,
+            throw new CommandError(
+              'Unable to execute "load" instruction',
+              `A check failed for the "load" instruction because a dependent derivation is missing in the nix store: ${dep.nixPath}`,
             );
           }
 
@@ -99,8 +101,9 @@ export async function assertInstructionCanBeApplied({
               dep.nixPath,
             );
             if (!cachePathExists) {
-              return new Error(
-                `Failed to execute "load" instruction because a dependent derivation is missing in the narinfo cache: ${dep.nixPath}`,
+              throw new CommandError(
+                'Unable to execute "load" instruction',
+                `A check failed for the "load" instruction because a dependent derivation is missing in the narinfo cache: ${dep.nixPath}`,
               );
             }
           }
@@ -115,8 +118,9 @@ export async function assertInstructionCanBeApplied({
         // Assert that the new rev exists in the store
         const storePathExists = await hasStorePath(step.item.nixPath);
         if (!storePathExists) {
-          return new Error(
-            `Failed to execute "switch" instruction because the new derivation is missing in the nix store: ${step.item.nixPath}`,
+          throw new CommandError(
+            'Unable to execute "switch" instruction',
+            `A check failed for the "switch" instruction because the new derivation is missing in the nix store: ${step.item.nixPath}`,
           );
         }
 
@@ -164,7 +168,8 @@ export async function buildInstructionFolder(
   // Verify that the instruction matches the schema, for sanity checking
   const parsed = instructionSchema.safeParse(commands);
   if (parsed.success === false) {
-    throw new Error(
+    throw new CommandError(
+      "Unexpected error",
       `Failed to build instruction because it doesn't match the schema. This is a bug.`,
     );
   }
@@ -189,15 +194,11 @@ export async function executeInstructionFolder(
   const instruction = instructionSchema.parse(JSON.parse(instructionText));
 
   // Assert that the instruction can be applied
-  const error = await assertInstructionCanBeApplied({
+  await assertInstructionCanBeApplied({
     storePath: shared.storePath,
     clientStateStorePath: shared.clientStateStorePath,
     instruction,
   });
-
-  if (error) {
-    throw error;
-  }
 
   // Execute the instruction
   for (const command of instruction) {
