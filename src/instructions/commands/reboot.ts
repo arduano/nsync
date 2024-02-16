@@ -3,8 +3,8 @@ import type {
   CommandImplementation,
   InstructionExecutionSharedArgs,
 } from "../schemas";
-import { execaCommand } from "execa";
 import fs from "fs";
+import { execThirdPartyCommand } from "../../errors";
 
 const rebootCommandSchema = z.object({
   // Command to trigger a reboot
@@ -40,7 +40,7 @@ async function executeRebootCommand(
     await new Promise((resolve) => setTimeout(resolve, args.delay! * 1000));
   }
 
-  await execaCommand("reboot");
+  await execThirdPartyCommand("reboot", "Failed to reboot the system");
 }
 
 export const rebootCommand = {

@@ -1,6 +1,5 @@
-import { execaCommand } from "execa";
 import { z } from "zod";
-import { CommandError } from "../errors";
+import { CommandError, execThirdPartyCommand } from "../errors";
 
 type GetFlakeRevisionFromRefArgs = {
   flakeUri: string;
@@ -16,15 +15,10 @@ export async function getRevisionFromRef({
 }: GetFlakeRevisionFromRefArgs) {
   const refArg = ref ? `?ref=${ref}` : "";
 
-  const result = await execaCommand(
+  const result = await execThirdPartyCommand(
     `nix flake metadata --json ${flakeUri}${refArg}`,
+    `Failed to get the flake git revision from git ref "${ref}"`,
   );
-  if (result.failed) {
-    throw new CommandError(
-      `Failed to get the flake git revision from git ref "${ref}"`,
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 
   let rev: string | undefined;
   try {
@@ -57,15 +51,10 @@ type GetFlakeExportsArgs = {
 export async function getFlakeInfo({ flakeUri, rev }: GetFlakeExportsArgs) {
   const revArg = rev ? `?rev=${rev}` : "";
 
-  const result = await execaCommand(
+  const result = await execThirdPartyCommand(
     `nix flake show --json ${flakeUri}${revArg}`,
+    "Failed to get flake info",
   );
-  if (result.failed) {
-    throw new CommandError(
-      "Failed to get flake info",
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 
   try {
     return JSON.parse(result.stdout);
@@ -155,22 +144,10 @@ export async function buildSystemFlake({
   const nixStoreRoot = buildPath;
   const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
 
-  const command = execaCommand(
+  const result = await execThirdPartyCommand(
     `nix build --json --no-link --store ${nixStoreRoot} ${flakeUri}?rev=${gitRev}#${attr}`,
-    {
-      stderr: "inherit",
-    },
+    "Failed to build system flake",
   );
-
-  // Pipe stderr to the host
-  const result = await command;
-
-  if (result.failed) {
-    throw new CommandError(
-      "Failed to build system flake",
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 
   try {
     const parsedResult = flakeBuildCommandResult.parse(

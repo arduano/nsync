@@ -1,8 +1,7 @@
-import { execaCommand } from "execa";
 import fs from "fs";
 import path from "path";
 import { getPathHashFromPath, getPathsInfo } from "./nixStore";
-import { CommandError } from "../errors";
+import { CommandError, execThirdPartyCommand } from "../errors";
 
 type CopyOutputToArchiveArgs = {
   storePath?: string;
@@ -19,21 +18,10 @@ export async function copyOutputToArchive({
   archivePath,
 }: CopyOutputToArchiveArgs) {
   const storeArg = storePath ? `--store ${storePath}` : "";
-  const command = execaCommand(
+  await execThirdPartyCommand(
     `nix copy --to file://${archivePath} ${storeArg} ${item}`,
-    {
-      stderr: "inherit",
-    },
+    "Failed to copy a store path to an archive",
   );
-
-  const result = await command;
-
-  if (result.failed) {
-    throw new CommandError(
-      "Failed to copy a store path to an archive",
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 }
 
 type GetArchiveDetailsArgs = {
@@ -110,19 +98,8 @@ export async function copyArchiveToStore({
   const storeArg = storePath ? `--store ${storePath}` : "";
   // TODO: This command must always be run as sudo, due to https://github.com/NixOS/nix/issues/1761
   // We could try incorporating signatures in the future.
-  const command = execaCommand(
+  await execThirdPartyCommand(
     `nix copy --no-check-sigs --from file://${archivePath} ${storeArg} ${item}`,
-    {
-      stderr: "inherit",
-    },
+    "Failed to copy an archive to the store",
   );
-
-  const result = await command;
-
-  if (result.failed) {
-    throw new CommandError(
-      "Failed to copy an archive to the store",
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 }

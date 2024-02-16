@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { execaCommand } from "execa";
-import { CommandError } from "../errors";
+import { CommandError, execThirdPartyCommand } from "../errors";
 
 const pathInfoValidData = z.object({
   ca: z.string().optional(),
@@ -71,15 +70,10 @@ export async function getPathInfo({
   pathName,
 }: GetPathInfoArgs): Promise<RelevantNixPathInfo | null> {
   const storeArg = storePath ? `--store ${storePath}` : "";
-  const result = await execaCommand(
+  const result = await execThirdPartyCommand(
     `nix path-info --json ${storeArg} ${pathName}`,
+    "Failed to get store path info",
   );
-  if (result.failed) {
-    throw new CommandError(
-      "Failed to get store path info",
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {
@@ -130,15 +124,10 @@ export async function getPathsInfo({
   }
 
   const storeArg = storePath ? `--store ${storePath}` : "";
-  const result = await execaCommand(
+  const result = await execThirdPartyCommand(
     `nix path-info --json ${storeArg} ${pathNames.join(" ")}`,
+    "Failed to get store path info",
   );
-  if (result.failed) {
-    throw new CommandError(
-      "Failed to get store path info",
-      `Nix stdout: ${result.stdout}\nNix stderr: ${result.stderr}`,
-    );
-  }
 
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {

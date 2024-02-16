@@ -1,6 +1,6 @@
 import { execaCommand } from "execa";
 import fs from "fs";
-import { CommandError } from "../errors";
+import { CommandError, execErrorToCommandError } from "../errors";
 
 type CompressInstructionDirArgs = {
   instructionDir: string;
@@ -46,9 +46,13 @@ export async function compressInstructionDir({
     xzCompressCommand.stdout.pipe(destinationFile);
   }
 
-  // Wait for xz to complete
-  await xzCompressCommand;
-  await tarFilesCommand;
+  try {
+    // Wait for xz to complete
+    await xzCompressCommand;
+    await tarFilesCommand;
+  } catch (e) {
+    throw execErrorToCommandError(e, "Failed to compress instruction");
+  }
 }
 
 type DecompressInstructionDirArgs = {
@@ -79,7 +83,11 @@ export async function decompressInstructionDir({
     buffer: false,
   });
 
-  // Wait for tar to complete
-  await tarExtractCommand;
-  await xzDecompressCommand;
+  try {
+    // Wait for tar to complete
+    await tarExtractCommand;
+    await xzDecompressCommand;
+  } catch (e) {
+    throw execErrorToCommandError(e, "Failed to compress instruction");
+  }
 }

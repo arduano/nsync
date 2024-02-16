@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 import { exists } from "../helpers";
-import { execaCommand } from "execa";
+import { execThirdPartyCommand } from "../errors";
 
 export async function getNixStoreGenerations(profilePrefix: string) {
   const folderName = path.dirname(profilePrefix);
@@ -121,19 +121,24 @@ export async function makeNewSystemGeneration({
   await fs.promises.symlink(nixItemPath, newGenerationLinkPath);
 
   if (executeActivation) {
-    await execaCommand(
+    await execThirdPartyCommand(
       `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`,
+      "Failed to switch to the new generation",
     );
 
     const activationCommand = path.join(
       newGenerationPathPrefix,
       "bin/switch-to-configuration",
     );
-    await execaCommand(`${activationCommand} ${executeActivation}`, {
-      env: {
-        NIXOS_INSTALL_BOOTLOADER: "1",
+    await execThirdPartyCommand(
+      `${activationCommand} ${executeActivation}`,
+      "Failed to activate the new generation",
+      {
+        env: {
+          NIXOS_INSTALL_BOOTLOADER: "1",
+        },
       },
-    });
+    );
   }
 }
 
@@ -177,5 +182,5 @@ export async function cleanupOldGenerations({
   }
 
   // Run gc
-  await execaCommand("nix store gc");
+  await execThirdPartyCommand("nix store gc", "Failed to run nix store gc");
 }
