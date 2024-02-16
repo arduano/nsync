@@ -143,7 +143,6 @@ const create = command({
         kind: "load",
         archiveFolderName: "archive",
         deltaDependencyRefs: dependencyRefs,
-        partialNarinfos: true,
         newRef,
         hostname,
         flakeUri,
@@ -209,20 +208,8 @@ const exec = command({
       description: "The store path to write to. Defaults to /",
       defaultValue: () => "/",
     }),
-    clientStateStorePath: option({
-      type: string,
-      long: "client-state",
-      short: "c",
-      description: "The client state path. Defaults to /var/lib/nsync",
-      defaultValue: () => "/var/lib/nsync",
-    }),
   },
-  handler: async ({
-    workdirPath,
-    instructionPath,
-    clientStateStorePath,
-    storePath,
-  }) => {
+  handler: async ({ workdirPath, instructionPath, storePath }) => {
     return wrapCommandError(async () => {
       if (!isRoot()) {
         throw new CommandError(
@@ -240,7 +227,6 @@ const exec = command({
 
       workdirPath = ensurePathAbsolute(workdirPath);
       instructionPath = ensurePathAbsolute(instructionPath);
-      clientStateStorePath = ensurePathAbsolute(clientStateStorePath);
       storePath = ensurePathAbsolute(storePath);
 
       // Make workdir
@@ -255,7 +241,6 @@ const exec = command({
       });
 
       await executeInstructionFolder({
-        clientStateStorePath,
         instructionFolderPath: workdirPath,
         storePath,
         progressCallback,

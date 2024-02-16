@@ -31,9 +31,6 @@ const loadArchiveDeltaCommandSchema = z.object({
   // The other items that this item depends on to be loaded
   deltaDependencies: z.array(storeRoot),
 
-  // Whether the .narinfo files in the archive are partial
-  partialNarinfos: z.boolean(),
-
   // The item to load
   item: storeRoot,
 });
@@ -44,7 +41,6 @@ type BuildLoadArchiveDeltaCommandArgs = {
   hostname: string;
   archiveFolderName: string;
   deltaDependencyRefs: string[];
-  partialNarinfos: boolean;
   newRef: string;
 };
 
@@ -55,7 +51,6 @@ async function buildLoadArchiveDeltaCommand(
     flakeUri,
     hostname,
     deltaDependencyRefs,
-    partialNarinfos,
     newRef: newRev,
   }: BuildLoadArchiveDeltaCommandArgs,
   {
@@ -122,12 +117,7 @@ async function buildLoadArchiveDeltaCommand(
   await makeArchiveSubset({
     archivePath: workdirArchivePath,
     destinationPath: archiveFolderPath,
-
-    // If the narinfos are partial, only add the added paths to the info item paths
-    infoItemPaths: partialNarinfos
-      ? pathInfo.added.map((info) => info.path)
-      : pathInfo.allResultingItems.map((info) => info.path),
-
+    infoItemPaths: pathInfo.added.map((info) => info.path),
     dataItemPaths: pathInfo.added.map((info) => info.path),
   });
 
@@ -142,7 +132,6 @@ async function buildLoadArchiveDeltaCommand(
       gitRevision: newRevBuildInfo.gitRevision,
       nixPath: newRevBuildInfo.output,
     },
-    partialNarinfos,
   };
 }
 
@@ -151,11 +140,9 @@ async function executeLoadArchiveDeltaCommand(
     archivePath,
     deltaDependencies,
     item,
-    partialNarinfos,
   }: z.infer<typeof loadArchiveDeltaCommandSchema>,
   {
     storePath,
-    clientStateStorePath,
     instructionFolderPath,
     progressCallback,
   }: InstructionExecutionSharedArgs,
@@ -163,15 +150,28 @@ async function executeLoadArchiveDeltaCommand(
   // Copy all the narinfo files into the archive
   const absoluteArchivePath = path.join(instructionFolderPath, archivePath);
 
+  progressCallback("Searching for existing dependency paths");
+
   const pathInfos = await getPathInfoTreeSearch({
     rootPathNames: deltaDependencies.map((d) => d.nixPath),
     storePath,
   });
 
+  progressCallback("Generating virtual narinfo files");
+
   for (const info of pathInfos) {
     const hash = getPathHashFromPath(info.path);
     const narinfoFilename = `${hash}.narinfo`;
     const destinationPath = path.join(absoluteArchivePath, narinfoFilename);
+
+    // Check if the file already exists
+    const exists = await fs.promises.access(destinationPath).then(
+      () => true,
+      () => false,
+    );
+    if (exists) {
+      continue;
+    }
 
     const narinfoText = nixPathInfoToNarinfoFileString(info);
 

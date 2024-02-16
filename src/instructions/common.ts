@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { doesNixPathExist } from "../utils/nixStore";
-import { getClientStoreNarinfoCachePathAsStorePath } from "../utils/clientStore";
 import path from "path";
 import fs from "fs";
 import { loadArchiveDeltaCommand } from "./commands/loadArchive";
@@ -39,13 +38,11 @@ type InstructionCommand = z.infer<typeof instructionCommand>;
 
 type AssertInstructionCanBeAppliedArgs = {
   storePath?: string;
-  clientStateStorePath: string;
   instruction: Instruction;
 };
 
 export async function assertInstructionCanBeApplied({
   storePath,
-  clientStateStorePath,
   instruction,
 }: AssertInstructionCanBeAppliedArgs) {
   const addedNixPaths: string[] = [];
@@ -56,22 +53,6 @@ export async function assertInstructionCanBeApplied({
     }
 
     // Check if the store path exists
-    const exists = await doesNixPathExist({
-      storePath,
-      pathName: path,
-    });
-
-    return exists;
-  };
-
-  const hasCachedNarinfoStorePath = async (path: string) => {
-    if (addedNixPaths.includes(path)) {
-      return true;
-    }
-
-    // Check if the path exists in the narinfo cache
-    const storePath =
-      getClientStoreNarinfoCachePathAsStorePath(clientStateStorePath);
     const exists = await doesNixPathExist({
       storePath,
       pathName: path,
@@ -93,19 +74,6 @@ export async function assertInstructionCanBeApplied({
               'Unable to execute "load" instruction',
               `A check failed for the "load" instruction because a dependent derivation is missing in the nix store: ${dep.nixPath}`,
             );
-          }
-
-          // Check narinfo cache if necessary
-          if (step.partialNarinfos) {
-            const cachePathExists = await hasCachedNarinfoStorePath(
-              dep.nixPath,
-            );
-            if (!cachePathExists) {
-              throw new CommandError(
-                'Unable to execute "load" instruction',
-                `A check failed for the "load" instruction because a dependent derivation is missing in the narinfo cache: ${dep.nixPath}`,
-              );
-            }
           }
         }
 
@@ -196,7 +164,6 @@ export async function executeInstructionFolder(
   // Assert that the instruction can be applied
   await assertInstructionCanBeApplied({
     storePath: shared.storePath,
-    clientStateStorePath: shared.clientStateStorePath,
     instruction,
   });
 

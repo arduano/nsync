@@ -36,7 +36,6 @@ export type InstructionBuilderSharedArgs = {
 export type InstructionExecutionSharedArgs = {
   // The environment stores to work with
   storePath: string;
-  clientStateStorePath: string;
 
   // Path to the instruction folder that's currently being executed
   instructionFolderPath: string;
