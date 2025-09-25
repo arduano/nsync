@@ -64,6 +64,10 @@ export async function decompressInstructionDir({
   instructionPath,
   destinationDir,
 }: DecompressInstructionDirArgs) {
+  console.log(`[decompressInstructionDir] Starting decompression`);
+  console.log(`[decompressInstructionDir] instructionPath: ${instructionPath}`);
+  console.log(`[decompressInstructionDir] destinationDir: ${destinationDir}`);
+
   const xzDecompressCommand = execaCommand(`xz -d -c ${instructionPath}`, {
     stdout: "pipe",
     stderr: "inherit",
@@ -71,10 +75,13 @@ export async function decompressInstructionDir({
   });
 
   if (!xzDecompressCommand.stdout) {
+    console.error(`[decompressInstructionDir] xz command did not provide stdout`);
     throw new CommandError(
       "Failed to decompress instruction",
       "Failed to get stdout from the xz command",
     );
+  } else {
+    console.log(`[decompressInstructionDir] xz command stdout is available`);
   }
 
   const tarExtractCommand = execaCommand(`tar -xf - -C ${destinationDir}`, {
@@ -83,11 +90,17 @@ export async function decompressInstructionDir({
     buffer: false,
   });
 
+  console.log(`[decompressInstructionDir] tar command started`);
+
   try {
     // Wait for tar to complete
     await tarExtractCommand;
+    console.log(`[decompressInstructionDir] tar extraction completed`);
     await xzDecompressCommand;
+    console.log(`[decompressInstructionDir] xz decompression completed`);
   } catch (e) {
+    console.error(`[decompressInstructionDir] Error during decompression:`, e);
     throw execErrorToCommandError(e, "Failed to decompress instruction");
   }
+  console.log(`[decompressInstructionDir] Decompression finished successfully`);
 }
