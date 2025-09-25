@@ -3,7 +3,7 @@ import { CommandError, execThirdPartyCommand } from "../errors";
 import path from "path";
 
 const pathInfoData = z.object({
-  ca: z.string().optional(),
+  ca: z.string().optional().nullable(),
   deriver: z.string().optional(),
   narHash: z.string(),
   narSize: z.number(),
@@ -30,13 +30,6 @@ function mapParsedPathInfoToRelevantPathInfo(
   path: string,
   parsed: z.infer<typeof pathInfoData>,
 ): NixPathInfo {
-  if (!parsed.valid) {
-    throw new CommandError(
-      "Failed to get store path info",
-      `The path info is invalid, it likely doesn't exist: ${path}`,
-    );
-  }
-
   return {
     narHash: parsed.narHash,
     narSize: parsed.narSize,
@@ -44,6 +37,9 @@ function mapParsedPathInfoToRelevantPathInfo(
     references: parsed.references,
     registrationTime: parsed.registrationTime,
     url: parsed.url,
+    signatures: parsed.signatures,
+    deriver: parsed.deriver,
+    ca: parsed.ca,
     ultimate: parsed.ultimate,
   };
 }
