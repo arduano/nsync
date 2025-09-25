@@ -96,8 +96,8 @@ export async function decompressInstructionDir({
     // Wait for tar to complete
     await tarExtractCommand;
     console.log(`[decompressInstructionDir] tar extraction completed`);
-    await xzDecompressCommand;
-    console.log(`[decompressInstructionDir] xz decompression completed`);
+    // await xzDecompressCommand;
+    // console.log(`[decompressInstructionDir] xz decompression completed`);
   } catch (e) {
     console.error(`[decompressInstructionDir] Error during decompression:`, e);
     throw execErrorToCommandError(e, "Failed to decompress instruction");
