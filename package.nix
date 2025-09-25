@@ -1,8 +1,7 @@
-{ nodejs, yarn, xz, gnutar, mkYarnPackage, buildFHSEnv, writeShellScriptBin, lib, pkgs, ... }:
+{ nodejs_24, xz, gnutar, buildNpmPackage, buildFHSEnv, writeShellScriptBin, lib, pkgs, ... }:
 let
   fhsDeps = pkgs: with pkgs; [
-    nodejs
-    yarn
+    nodejs_24
     xz
     gnutar
   ];
@@ -13,20 +12,16 @@ let
     runScript = "bash";
   };
 
-  nsyncBuiltFile = mkYarnPackage {
+  nsyncBuiltFile = buildNpmPackage {
     name = "nsync";
     src = ./.;
-    packageJson = ./package.json;
-    yarnLock = ./yarn.lock;
+    npmDepsHash = "sha256-hzGpEk6udgIGCN2wKgDsB9hfyyI+j8D5qmcYVq+r/Qs=";
 
-    buildInputs = [ yarn ];
-    buildPhase = ''
-      ${yarn}/bin/yarn build
-    '';
+    buildInputs = [ ];
 
     installPhase = ''
       mkdir $out
-      mv deps/nsync/dist/main.js $out
+      mv dist/main.js $out
     '';
 
     doFixup = false;

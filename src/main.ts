@@ -256,7 +256,8 @@ const exec = command({
 });
 
 const app = subcommands({
-  name: "Nix TCP-less remote transfer",
+  name: "nsync",
+  description: "Nix TCP-less remote transfer",
   cmds: { create, exec },
 });
 
