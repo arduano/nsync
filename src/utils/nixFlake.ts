@@ -40,40 +40,12 @@ export async function getRevisionFromRef({
   return rev;
 }
 
-type GetFlakeExportsArgs = {
-  flakeUri: string;
-  rev?: string;
-};
-
-/**
- * Given a path and a revision, get the `nix flake show` result of the flake, which generally shows all the flake exports.
- */
-export async function getFlakeInfo({ flakeUri, rev }: GetFlakeExportsArgs) {
-  const revArg = rev ? `?rev=${rev}` : "";
-
-  const result = await execThirdPartyCommand(
-    `nix flake show --json ${flakeUri}${revArg}`,
-    "Failed to get flake info",
-  );
-
-  try {
-    return JSON.parse(result.stdout);
-  } catch (e) {
-    throw new CommandError(
-      "Failed to get flake info",
-      `Failed to parse the flake info JSON: ${result.stdout}`,
-    );
-  }
-}
-
 type GetFlakeHostnamesArgs = {
   flakeUri: string;
   rev?: string;
 };
 
-const configurationsSchema = z.object({
-  nixosConfigurations: z.record(z.unknown()).optional(),
-});
+const hostnamesSchema = z.array(z.string());
 
 /**
  * Given a path and a revision, get the hostnames of the flake.
@@ -82,22 +54,25 @@ export async function getFlakeHostnames({
   flakeUri,
   rev,
 }: GetFlakeHostnamesArgs) {
-  const flakeInfo = await getFlakeInfo({ flakeUri, rev });
-  const parsed = configurationsSchema.safeParse(flakeInfo);
-  if (!parsed.success) {
+  const revArg = rev ? `?rev=${rev}` : "";
+  const flakeRef = `${flakeUri}${revArg}`;
+  const flakeRefLiteral = JSON.stringify(flakeRef);
+  const expr = `let flake = builtins.getFlake ${flakeRefLiteral}; in if flake ? nixosConfigurations then builtins.attrNames flake.nixosConfigurations else []`;
+
+  const result = await execThirdPartyCommand(
+    `nix eval --json --expr '${expr}'`,
+    "Failed to get flake hostnames",
+  );
+
+  try {
+    const hostnames = hostnamesSchema.parse(JSON.parse(result.stdout));
+    return hostnames;
+  } catch (e) {
     throw new CommandError(
       "Failed to get flake hostnames",
-      `Failed to parse the flake info JSON: ${parsed.error.message}`,
+      `Failed to parse the flake hostnames JSON: ${result.stdout}`,
     );
   }
-
-  const configurations = parsed.data.nixosConfigurations;
-  if (!configurations) {
-    return [];
-  }
-
-  const hostnames = Object.keys(configurations);
-  return hostnames;
 }
 
 type BuildFlakeArgs = {
