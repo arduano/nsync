@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CommandError, execThirdPartyCommand } from "../errors";
 import path from "path";
 
-const pathInfoValidData = z.object({
+const pathInfoData = z.object({
   ca: z.string().optional(),
   deriver: z.string().optional(),
   narHash: z.string(),
@@ -11,20 +11,20 @@ const pathInfoValidData = z.object({
   signatures: z.array(z.string()).optional(),
   registrationTime: z.number().optional(),
   url: z.string().optional(),
-  valid: z.literal(true),
-  ultimate: z.boolean().optional(),
+  ultimate: z.literal(true),
 });
 
-const pathInfoInvalidData = z.object({
-  path: z.string(),
-  valid: z.literal(false),
-});
+// TODO: Learn what this is and handle it
+// const pathInfoInvalidData = z.object({
+//   path: z.string(),
+//   valid: z.literal(false),
+// });
 
-const pathInfoData = z.union([pathInfoValidData, pathInfoInvalidData]);
+// const pathInfoData = z.union([pathInfoValidData, pathInfoInvalidData]);
 
-const pathInfoDataObj = z.record(z.string(), pathInfoData);
+const pathInfoDataObj = z.record(z.string(), pathInfoData.nullable());
 
-type NixPathInfo = z.infer<typeof pathInfoValidData> & { path: string };
+type NixPathInfo = z.infer<typeof pathInfoData> & { path: string };
 
 function mapParsedPathInfoToRelevantPathInfo(
   path: string,
@@ -44,7 +44,7 @@ function mapParsedPathInfoToRelevantPathInfo(
     references: parsed.references,
     registrationTime: parsed.registrationTime,
     url: parsed.url,
-    valid: parsed.valid,
+    ultimate: parsed.ultimate,
   };
 }
 
@@ -128,12 +128,13 @@ export async function getPathsInfo({
     );
   }
 
-  const entries = Object.entries(parsed.data).map(([path, item]) => [
-    path,
-    mapParsedPathInfoToRelevantPathInfo(path, item),
-  ]);
+  const entries = Object.entries(parsed.data).map(
+    ([path, item]) =>
+      item &&
+      ([path, mapParsedPathInfoToRelevantPathInfo(path, item)] as const),
+  );
 
-  const map = Object.fromEntries(entries);
+  const map = Object.fromEntries(entries.filter((e) => e != null));
 
   // Ensure all paths are present
   for (const pathName of pathNames) {

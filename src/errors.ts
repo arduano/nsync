@@ -1,6 +1,8 @@
 import type { Options as ExecaOptions } from "execa";
 import { execa, execaCommand } from "execa";
 
+import { logger } from "./logger";
+
 export class CommandError extends Error {
   constructor(
     message: string,
@@ -18,12 +20,8 @@ export async function wrapCommandError<T>(
     return 0;
   } catch (error) {
     if (error instanceof CommandError) {
-      // eslint-disable-next-line no-console
-      console.error();
-      // eslint-disable-next-line no-console
-      console.error(error.message);
-      // eslint-disable-next-line no-console
-      console.error(error.description);
+      logger.error(error.message);
+      logger.note(error.description);
       return 1;
     } else {
       throw error;
@@ -51,11 +49,8 @@ export async function execThirdPartyCommand(
           )
           .join(" ")
       : command;
-    const cwdInfo = execaOptions.cwd
-      ? ` (cwd: ${execaOptions.cwd})`
-      : "";
-    // eslint-disable-next-line no-console
-    console.info(`Running command: ${formattedCommand}${cwdInfo}`);
+    const cwd = typeof execaOptions.cwd === "string" ? execaOptions.cwd : undefined;
+    logger.command(formattedCommand, { cwd });
 
     const result = Array.isArray(command)
       ? await execa(command[0], command.slice(1), execaOptions)

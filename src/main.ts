@@ -26,6 +26,7 @@ import {
 import { customAlphabet } from "nanoid";
 import { CommandError, wrapCommandError } from "./errors";
 import { parseGitPointer } from "./utils/git";
+import { logger } from "./logger";
 
 const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);
 
@@ -174,8 +175,7 @@ const create = command({
         workdirStorePath,
         workdirArchivePath,
         progressCallback: (progress) => {
-          // eslint-disable-next-line no-console
-          console.warn(progress);
+          logger.progress(progress);
         },
       });
 
@@ -224,8 +224,7 @@ const exec = command({
       }
 
       const progressCallback = (progress: string) => {
-        // eslint-disable-next-line no-console
-        console.warn(progress);
+        logger.progress(progress);
       };
 
       workdirPath = workdirPath || `/tmp/nsync-${fileId()}`;
