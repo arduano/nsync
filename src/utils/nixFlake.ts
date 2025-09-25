@@ -58,9 +58,10 @@ export async function getFlakeHostnames({
   const flakeRef = `${flakeUri}${revArg}`;
   const flakeRefLiteral = JSON.stringify(flakeRef);
   const expr = `let flake = builtins.getFlake ${flakeRefLiteral}; in if flake ? nixosConfigurations then builtins.attrNames flake.nixosConfigurations else []`;
+  const exprArg = JSON.stringify(expr);
 
   const result = await execThirdPartyCommand(
-    `nix eval --json --expr '${expr}'`,
+    `nix eval --json --expr ${exprArg}`,
     "Failed to get flake hostnames",
   );
 
