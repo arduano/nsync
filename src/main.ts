@@ -25,6 +25,7 @@ import {
 } from "./instructions/compression";
 import { customAlphabet } from "nanoid";
 import { CommandError, wrapCommandError } from "./errors";
+import { parseGitPointer } from "./utils/git";
 
 const fileId = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 10);
 
@@ -138,12 +139,17 @@ const create = command({
       const workdirArchivePath = `${workdirPath}/archive`;
       const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
 
+      const dependencyPointers = dependencyRefs
+        .flat()
+        .map(parseGitPointer);
+      const newPointer = parseGitPointer(newRef);
+
       const buildArgs: BuildCommandArgs[] = [];
       buildArgs.push({
         kind: "load",
         archiveFolderName: "archive",
-        deltaDependencyRefs: dependencyRefs,
-        newRef,
+        deltaDependencyPointers: dependencyPointers,
+        newPointer,
         hostname,
         flakeUri,
       });
@@ -152,7 +158,7 @@ const create = command({
         mode: "immediate",
         flakeUri,
         hostname,
-        ref: newRef,
+        gitPointer: newPointer,
       });
 
       if (reboot) {

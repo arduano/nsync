@@ -1,5 +1,5 @@
 import type { Options as ExecaOptions } from "execa";
-import { execaCommand } from "execa";
+import { execa, execaCommand } from "execa";
 
 export class CommandError extends Error {
   constructor(
@@ -32,15 +32,19 @@ export async function wrapCommandError<T>(
 }
 
 export async function execThirdPartyCommand(
-  command: string,
+  command: string | [string, ...string[]],
   failedMessage: string,
   options?: ExecaOptions,
 ) {
   try {
-    const result = await execaCommand(command, {
-      stderr: "inherit",
+    const execaOptions = {
+      stderr: "inherit" as const,
       ...options,
-    });
+    };
+
+    const result = Array.isArray(command)
+      ? await execa(command[0], command.slice(1), execaOptions)
+      : await execaCommand(command, execaOptions);
     return result;
   } catch (e: any) {
     throw execErrorToCommandError(e, failedMessage);

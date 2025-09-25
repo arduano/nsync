@@ -4,6 +4,7 @@ import type {
   InstructionBuilderSharedArgs,
   InstructionExecutionSharedArgs,
 } from "../schemas";
+import type { GitPointer } from "../../utils/git";
 import { storeRoot } from "../schemas";
 import type { FlakeBuildResult } from "../../utils/nixFlake";
 import { buildSystemFlake } from "../../utils/nixFlake";
@@ -40,8 +41,8 @@ type BuildLoadArchiveDeltaCommandArgs = {
   flakeUri: string;
   hostname: string;
   archiveFolderName: string;
-  deltaDependencyRefs: string[];
-  newRef: string;
+  deltaDependencyPointers: GitPointer[];
+  newPointer: GitPointer;
 };
 
 async function buildLoadArchiveDeltaCommand(
@@ -50,8 +51,8 @@ async function buildLoadArchiveDeltaCommand(
     archiveFolderName,
     flakeUri,
     hostname,
-    deltaDependencyRefs,
-    newRef: newRev,
+    deltaDependencyPointers,
+    newPointer: newRev,
   }: BuildLoadArchiveDeltaCommandArgs,
   {
     instructionFolderPath,
@@ -62,29 +63,25 @@ async function buildLoadArchiveDeltaCommand(
 ): Promise<z.infer<typeof loadArchiveDeltaCommandSchema>> {
   progressCallback("Building previous revisions");
 
-  type BuildInfo = FlakeBuildResult & { rev: string };
-  const oldRevBuildInfos: BuildInfo[] = [];
-  for (const ref of deltaDependencyRefs) {
-    progressCallback(`Building revision ${ref}`);
+  const oldRevBuildInfos: FlakeBuildResult[] = [];
+  for (const pointer of deltaDependencyPointers) {
+    progressCallback(`Building ${pointer.kind} ${pointer.value}`);
     const info = await buildSystemFlake({
       flakeUri,
       hostname,
       storeAbsolutePath: workdirStorePath,
-      ref,
+      gitPointer: pointer,
     });
 
-    oldRevBuildInfos.push({
-      rev: info.gitRevision,
-      ...info,
-    });
+    oldRevBuildInfos.push(info);
   }
 
-  progressCallback("Building new revision");
+  progressCallback(`Building ${newRev.kind} ${newRev.value}`);
   const newRevBuildInfo = await buildSystemFlake({
     flakeUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
-    ref: newRev,
+    gitPointer: newRev,
   });
 
   progressCallback("Copying to archive");
@@ -125,11 +122,11 @@ async function buildLoadArchiveDeltaCommand(
     kind,
     archivePath: archiveFolderName,
     deltaDependencies: oldRevBuildInfos.map((build) => ({
-      gitRevision: build.rev,
+      gitRevision: build.gitRevision.value,
       nixPath: build.output,
     })),
     item: {
-      gitRevision: newRevBuildInfo.gitRevision,
+      gitRevision: newRevBuildInfo.gitRevision.value,
       nixPath: newRevBuildInfo.output,
     },
   };

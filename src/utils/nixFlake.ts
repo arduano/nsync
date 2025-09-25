@@ -1,12 +1,6 @@
 import { z } from "zod";
 import { CommandError, execThirdPartyCommand } from "../errors";
-import {
-  GitPointer,
-  GitRef,
-  GitRev,
-  isGitRev,
-  makeGitRev,
-} from "./git";
+import { GitPointer, GitRef, GitRev, isGitRev, makeGitRev } from "./git";
 
 type FetchFlakeRevisionArgs = {
   flakeUri: string;
@@ -85,10 +79,9 @@ export async function getFlakeHostnames({
   const flakeRef = `${flakeUri}${revArg}`;
   const flakeRefLiteral = JSON.stringify(flakeRef);
   const expr = `builtins.attrNames (builtins.getFlake ${flakeRefLiteral}).nixosConfigurations`;
-  const exprArg = JSON.stringify(expr);
 
   const result = await execThirdPartyCommand(
-    `nix eval --json --expr ${exprArg}`,
+    ["nix", "eval", "--json", "--impure", "--expr", expr],
     "Failed to get flake hostnames",
   );
 
@@ -148,7 +141,15 @@ export async function buildSystemFlake({
   const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
 
   const result = await execThirdPartyCommand(
-    `nix build --json --no-link --store ${nixStoreRoot} ${flakeUri}?rev=${gitRev.value}#${attr}`,
+    [
+      "nix",
+      "build",
+      "--json",
+      "--no-link",
+      "--store",
+      nixStoreRoot,
+      `${flakeUri}?rev=${gitRev.value}#${attr}`,
+    ],
     "Failed to build system flake",
   );
 
