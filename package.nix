@@ -20,8 +20,7 @@ let
     buildInputs = [ ];
 
     installPhase = ''
-      mkdir $out
-      mv dist/main.js $out
+      cp -r dist $out
     '';
 
     doFixup = false;
