@@ -20,7 +20,7 @@ export default defineConfig(({ watch, entry, external }) => {
     bundle: true,
     metafile: true,
     treeshake: true,
-    noExternal: ["cmd-ts", "execa", "zod", "nanoid"],
+    noExternal: ["cmd-ts", "execa", "zod", "nanoid", "signale"],
     loader: {
       ".json": "copy",
     },
