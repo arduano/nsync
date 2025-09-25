@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { GitPointer } from "../../utils/git";
 import { buildSystemFlake } from "../../utils/nixFlake";
 import type {
   InstructionBuilderSharedArgs,
@@ -19,12 +20,12 @@ type BuildStoreSwitchCommandArgs = {
   kind: "switch";
   flakeUri: string;
   hostname: string;
-  ref: string;
+  gitPointer: GitPointer;
   mode: "immediate" | "next-reboot";
 };
 
 async function buildStoreSwitchCommand(
-  { kind, flakeUri, hostname, ref, mode }: BuildStoreSwitchCommandArgs,
+  { kind, flakeUri, hostname, gitPointer, mode }: BuildStoreSwitchCommandArgs,
   { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs,
 ): Promise<z.infer<typeof storeSwitchCommandSchema>> {
   progressCallback("Building switch command");
@@ -33,14 +34,14 @@ async function buildStoreSwitchCommand(
     flakeUri,
     hostname,
     storeAbsolutePath: workdirStorePath,
-    ref,
+    gitPointer,
   });
 
   return {
     kind,
     item: {
       nixPath: buildInfo.output,
-      gitRevision: buildInfo.gitRevision,
+      gitRevision: buildInfo.gitRevision.value,
     },
     mode,
   };

@@ -1,23 +1,30 @@
 import { z } from "zod";
 import { CommandError, execThirdPartyCommand } from "../errors";
+import {
+  GitPointer,
+  GitRef,
+  GitRev,
+  isGitRev,
+  makeGitRev,
+} from "./git";
 
-type GetFlakeRevisionFromRefArgs = {
+type FetchFlakeRevisionArgs = {
   flakeUri: string;
-  ref?: string;
+  pointer?: GitRef;
 };
 
-/**
- * Given a path and a git ref, get the git revision of the flake.
- */
-export async function getRevisionFromRef({
+async function fetchFlakeRevision({
   flakeUri,
-  ref,
-}: GetFlakeRevisionFromRefArgs) {
-  const refArg = ref ? `?ref=${ref}` : "";
+  pointer,
+}: FetchFlakeRevisionArgs): Promise<GitRev> {
+  const pointerLabel = pointer
+    ? `git ref "${pointer.value}"`
+    : "the flake's default revision";
+  const refArg = pointer ? `?ref=${pointer.value}` : "";
 
   const result = await execThirdPartyCommand(
     `nix flake metadata --json ${flakeUri}${refArg}`,
-    `Failed to get the flake git revision from git ref "${ref}"`,
+    `Failed to get the flake git revision for ${pointerLabel}`,
   );
 
   let rev: string | undefined;
@@ -25,24 +32,44 @@ export async function getRevisionFromRef({
     rev = JSON.parse(result.stdout).revision as string | undefined;
   } catch (e) {
     throw new CommandError(
-      `Failed to get the flake git revision from git ref "${ref}"`,
+      `Failed to get the flake git revision for ${pointerLabel}`,
       `Failed to extract the revision from the flake info JSON: ${result.stdout}`,
     );
   }
 
   if (!rev) {
     throw new CommandError(
-      `Failed to get the flake git revision from git ref "${ref}"`,
+      `Failed to get the flake git revision for ${pointerLabel}`,
       `No revision found in the flake info JSON: ${result.stdout}`,
     );
   }
 
-  return rev;
+  return makeGitRev(rev);
+}
+
+type ResolveGitRevisionArgs = {
+  flakeUri: string;
+  pointer?: GitPointer;
+};
+
+export async function resolveGitRevision({
+  flakeUri,
+  pointer,
+}: ResolveGitRevisionArgs): Promise<GitRev> {
+  if (!pointer) {
+    return fetchFlakeRevision({ flakeUri });
+  }
+
+  if (isGitRev(pointer)) {
+    return pointer;
+  }
+
+  return fetchFlakeRevision({ flakeUri, pointer });
 }
 
 type GetFlakeHostnamesArgs = {
   flakeUri: string;
-  rev?: string;
+  rev?: GitRev;
 };
 
 const hostnamesSchema = z.array(z.string());
@@ -54,10 +81,10 @@ export async function getFlakeHostnames({
   flakeUri,
   rev,
 }: GetFlakeHostnamesArgs) {
-  const revArg = rev ? `?rev=${rev}` : "";
+  const revArg = rev ? `?rev=${rev.value}` : "";
   const flakeRef = `${flakeUri}${revArg}`;
   const flakeRefLiteral = JSON.stringify(flakeRef);
-  const expr = `let flake = builtins.getFlake ${flakeRefLiteral}; in if flake ? nixosConfigurations then builtins.attrNames flake.nixosConfigurations else []`;
+  const expr = `builtins.attrNames (builtins.getFlake ${flakeRefLiteral}).nixosConfigurations`;
   const exprArg = JSON.stringify(expr);
 
   const result = await execThirdPartyCommand(
@@ -80,7 +107,7 @@ type BuildFlakeArgs = {
   flakeUri: string;
   storeAbsolutePath: string;
   hostname: string;
-  ref?: string;
+  gitPointer?: GitPointer;
 };
 
 const flakeBuildCommandResult = z
@@ -101,10 +128,10 @@ const flakeBuildCommandResult = z
 export async function buildSystemFlake({
   flakeUri,
   hostname,
-  ref,
+  gitPointer,
   storeAbsolutePath: buildPath,
 }: BuildFlakeArgs) {
-  const gitRev = await getRevisionFromRef({ flakeUri, ref });
+  const gitRev = await resolveGitRevision({ flakeUri, pointer: gitPointer });
 
   const hostnames = await getFlakeHostnames({ flakeUri, rev: gitRev });
 
@@ -121,7 +148,7 @@ export async function buildSystemFlake({
   const attr = `nixosConfigurations.${hostname}.config.system.build.toplevel`;
 
   const result = await execThirdPartyCommand(
-    `nix build --json --no-link --store ${nixStoreRoot} ${flakeUri}?rev=${gitRev}#${attr}`,
+    `nix build --json --no-link --store ${nixStoreRoot} ${flakeUri}?rev=${gitRev.value}#${attr}`,
     "Failed to build system flake",
   );
 
