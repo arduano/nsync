@@ -102,6 +102,7 @@ export async function getPathsInfo({
   const result = await execThirdPartyCommand(
     `nix path-info --json ${storeArg} ${pathNames.join(" ")}`,
     `Failed to get store path info for ${pathLabels}`,
+    { logCommand: false },
   );
 
   let json: unknown;

@@ -32,25 +32,29 @@ export async function wrapCommandError<T>(
 export async function execThirdPartyCommand(
   command: string | [string, ...string[]],
   failedMessage: string,
-  options?: ExecaOptions,
+  options?: ExecaOptions & { logCommand?: boolean },
 ) {
+  const { logCommand = true, ...otherOptions } = options || {};
   try {
     const execaOptions = {
       stderr: "inherit" as const,
-      ...options,
+      ...otherOptions,
     };
 
-    const formattedCommand = Array.isArray(command)
-      ? command
-          .map((part) =>
-            /\s/.test(part) || part.includes("\"")
-              ? JSON.stringify(part)
-              : part,
-          )
-          .join(" ")
-      : command;
-    const cwd = typeof execaOptions.cwd === "string" ? execaOptions.cwd : undefined;
-    logger.command(formattedCommand, { cwd });
+    if (logCommand) {
+      const formattedCommand = Array.isArray(command)
+        ? command
+            .map((part) =>
+              /\s/.test(part) || part.includes('"')
+                ? JSON.stringify(part)
+                : part,
+            )
+            .join(" ")
+        : command;
+      const cwd =
+        typeof execaOptions.cwd === "string" ? execaOptions.cwd : undefined;
+      logger.command(formattedCommand, { cwd });
+    }
 
     const result = Array.isArray(command)
       ? await execa(command[0], command.slice(1), execaOptions)
