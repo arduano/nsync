@@ -4,7 +4,7 @@ import path from "path";
 
 const pathInfoData = z.object({
   ca: z.string().optional().nullable(),
-  deriver: z.string().optional(),
+  deriver: z.string().optional().nullable(),
   narHash: z.string(),
   narSize: z.number(),
   references: z.array(z.string()),
