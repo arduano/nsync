@@ -11,7 +11,7 @@ const pathInfoData = z.object({
   signatures: z.array(z.string()).optional(),
   registrationTime: z.number().optional(),
   url: z.string().optional(),
-  ultimate: z.literal(true),
+  ultimate: z.boolean(),
 });
 
 // TODO: Learn what this is and handle it
