@@ -140,9 +140,7 @@ const create = command({
       const workdirArchivePath = `${workdirPath}/archive`;
       const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
 
-      const dependencyPointers = dependencyRefs
-        .flat()
-        .map(parseGitPointer);
+      const dependencyPointers = dependencyRefs.flat().map(parseGitPointer);
       const newPointer = parseGitPointer(newRef);
 
       const buildArgs: BuildCommandArgs[] = [];
@@ -237,13 +235,15 @@ const exec = command({
         // Make workdir
         await fs.promises.mkdir(workdirPath, { recursive: true });
 
-        progressCallback("Decompressing instruction");
+        progressCallback(`Decompressing instruction to ${workdirPath}`);
 
         // Extract instruction
         await decompressInstructionDir({
           destinationDir: workdirPath,
           instructionPath,
         });
+
+        progressCallback(`Executing instruction in ${workdirPath}`);
 
         await executeInstructionFolder({
           instructionFolderPath: workdirPath,
