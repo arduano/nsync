@@ -15,7 +15,7 @@ let
   nsyncBuiltFile = buildNpmPackage {
     name = "nsync";
     src = ./.;
-    npmDepsHash = "sha256-hzGpEk6udgIGCN2wKgDsB9hfyyI+j8D5qmcYVq+r/Qs=";
+    npmDepsHash = "sha256-nRvhaaAKx9yKVf1SfRN3bsjTrqxGwq1zmq4bjG4YaZw=";
 
     buildInputs = [ ];
 
