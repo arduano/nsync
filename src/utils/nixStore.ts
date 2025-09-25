@@ -68,7 +68,7 @@ export async function getPathInfo({
   const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
   if (!parsed.success) {
     throw new CommandError(
-      "Failed to get store path info",
+      `Failed to get store path info for "${pathName}"`,
       `Failed to parse the store path info JSON: ${parsed.error.message}`,
     );
   }
