@@ -7,12 +7,12 @@ const pathInfoValidData = z.object({
   deriver: z.string().optional(),
   narHash: z.string(),
   narSize: z.number(),
-  path: z.string(),
   references: z.array(z.string()),
   signatures: z.array(z.string()).optional(),
   registrationTime: z.number().optional(),
   url: z.string().optional(),
   valid: z.literal(true),
+  ultimate: z.boolean().optional(),
 });
 
 const pathInfoInvalidData = z.object({
@@ -22,24 +22,25 @@ const pathInfoInvalidData = z.object({
 
 const pathInfoData = z.union([pathInfoValidData, pathInfoInvalidData]);
 
-const pathInfoDataArray = z.array(pathInfoData);
+const pathInfoDataObj = z.record(z.string(), pathInfoData);
 
-type NixPathInfo = z.infer<typeof pathInfoValidData>;
+type NixPathInfo = z.infer<typeof pathInfoValidData> & { path: string };
 
 function mapParsedPathInfoToRelevantPathInfo(
+  path: string,
   parsed: z.infer<typeof pathInfoData>,
 ): NixPathInfo {
   if (!parsed.valid) {
     throw new CommandError(
       "Failed to get store path info",
-      `The path info is invalid, it likely doesn't exist: ${parsed.path}`,
+      `The path info is invalid, it likely doesn't exist: ${path}`,
     );
   }
 
   return {
     narHash: parsed.narHash,
     narSize: parsed.narSize,
-    path: parsed.path,
+    path: path,
     references: parsed.references,
     registrationTime: parsed.registrationTime,
     url: parsed.url,
@@ -59,33 +60,8 @@ export async function getPathInfo({
   storePath,
   pathName,
 }: GetPathInfoArgs): Promise<NixPathInfo | null> {
-  const storeArg = storePath ? `--store ${storePath}` : "";
-  const result = await execThirdPartyCommand(
-    `nix path-info --json ${storeArg} ${pathName}`,
-    `Failed to get store path info for "${pathName}"`,
-  );
-
-  let json: unknown;
-  try {
-    json = JSON.parse(result.stdout);
-  } catch (error) {
-    const reason =
-      error instanceof Error ? error.message : "Unknown JSON parse error";
-    throw new CommandError(
-      `Failed to get store path info for "${pathName}"`,
-      `Could not parse JSON output from nix path-info (${reason}). Raw output: ${result.stdout}`,
-    );
-  }
-
-  const parsed = pathInfoDataArray.safeParse(json);
-  if (!parsed.success) {
-    throw new CommandError(
-      `Failed to get store path info for "${pathName}"`,
-      `Failed to validate the store path info JSON: ${parsed.error.message}. Raw output: ${result.stdout}`,
-    );
-  }
-
-  return mapParsedPathInfoToRelevantPathInfo(parsed.data[0]);
+  const pathsInfo = await getPathsInfo({ storePath, pathNames: [pathName] });
+  return pathsInfo[pathName] || null;
 }
 
 type DoesNixPathExistArgs = {
@@ -144,7 +120,7 @@ export async function getPathsInfo({
     );
   }
 
-  const parsed = pathInfoDataArray.safeParse(json);
+  const parsed = pathInfoDataObj.safeParse(json);
   if (!parsed.success) {
     throw new CommandError(
       `Failed to get store path info for ${pathLabels}`,
@@ -152,9 +128,9 @@ export async function getPathsInfo({
     );
   }
 
-  const entries = parsed.data.map((item) => [
-    item.path,
-    mapParsedPathInfoToRelevantPathInfo(item),
+  const entries = Object.entries(parsed.data).map(([path, item]) => [
+    path,
+    mapParsedPathInfoToRelevantPathInfo(path, item),
   ]);
 
   const map = Object.fromEntries(entries);
