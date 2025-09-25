@@ -82,7 +82,7 @@ export async function getFlakeHostnames({
 
   const result = await execThirdPartyCommand(
     ["nix", "eval", "--json", "--impure", "--expr", expr],
-    "Failed to get flake hostnames",
+    `Failed to get flake hostnames for flake ${flakeRef}`,
   );
 
   try {
@@ -90,7 +90,7 @@ export async function getFlakeHostnames({
     return hostnames;
   } catch (e) {
     throw new CommandError(
-      "Failed to get flake hostnames",
+      `Failed to get flake hostnames for flake ${flakeRef}`,
       `Failed to parse the flake hostnames JSON: ${result.stdout}`,
     );
   }
@@ -150,7 +150,7 @@ export async function buildSystemFlake({
       nixStoreRoot,
       `${flakeUri}?rev=${gitRev.value}#${attr}`,
     ],
-    "Failed to build system flake",
+    `Failed to build system flake for hostname "${hostname}" at revision "${gitRev.value}"`,
   );
 
   try {
@@ -167,7 +167,7 @@ export async function buildSystemFlake({
     return parsed;
   } catch (e) {
     throw new CommandError(
-      "Failed to build system flake",
+      `Failed to build system flake for hostname "${hostname}" at revision "${gitRev.value}"`,
       `Failed to parse the flake build command JSON: ${result.stdout}`,
     );
   }

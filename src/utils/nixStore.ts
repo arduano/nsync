@@ -62,14 +62,26 @@ export async function getPathInfo({
   const storeArg = storePath ? `--store ${storePath}` : "";
   const result = await execThirdPartyCommand(
     `nix path-info --json ${storeArg} ${pathName}`,
-    "Failed to get store path info",
+    `Failed to get store path info for "${pathName}"`,
   );
 
-  const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
+  let json: unknown;
+  try {
+    json = JSON.parse(result.stdout);
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : "Unknown JSON parse error";
+    throw new CommandError(
+      `Failed to get store path info for "${pathName}"`,
+      `Could not parse JSON output from nix path-info (${reason}). Raw output: ${result.stdout}`,
+    );
+  }
+
+  const parsed = pathInfoDataArray.safeParse(json);
   if (!parsed.success) {
     throw new CommandError(
       `Failed to get store path info for "${pathName}"`,
-      `Failed to parse the store path info JSON: ${parsed.error.message}`,
+      `Failed to validate the store path info JSON: ${parsed.error.message}. Raw output: ${result.stdout}`,
     );
   }
 
@@ -114,16 +126,29 @@ export async function getPathsInfo({
   }
 
   const storeArg = storePath ? `--store ${storePath}` : "";
+  const pathLabels = pathNames.map((name) => `"${name}"`).join(", ");
   const result = await execThirdPartyCommand(
     `nix path-info --json ${storeArg} ${pathNames.join(" ")}`,
-    "Failed to get store path info",
+    `Failed to get store path info for ${pathLabels}`,
   );
 
-  const parsed = pathInfoDataArray.safeParse(JSON.parse(result.stdout));
+  let json: unknown;
+  try {
+    json = JSON.parse(result.stdout);
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : "Unknown JSON parse error";
+    throw new CommandError(
+      `Failed to get store path info for ${pathLabels}`,
+      `Could not parse JSON output from nix path-info (${reason}). Raw output: ${result.stdout}`,
+    );
+  }
+
+  const parsed = pathInfoDataArray.safeParse(json);
   if (!parsed.success) {
     throw new CommandError(
-      "Failed to get store path info",
-      `Failed to parse the store path info JSON: ${parsed.error.message}`,
+      `Failed to get store path info for ${pathLabels}`,
+      `Failed to validate the store path info JSON: ${parsed.error.message}. Raw output: ${result.stdout}`,
     );
   }
 
@@ -138,7 +163,7 @@ export async function getPathsInfo({
   for (const pathName of pathNames) {
     if (!map[pathName]) {
       throw new CommandError(
-        "Failed to get store path info",
+        `Failed to get store path info for "${pathName}"`,
         `Could not find path info for "${pathName}", it's likely absent`,
       );
     }

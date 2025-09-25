@@ -123,7 +123,7 @@ export async function makeNewSystemGeneration({
   if (executeActivation) {
     await execThirdPartyCommand(
       `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`,
-      "Failed to switch to the new generation",
+      `Failed to switch to generation ${newGenerationNumber} for profile prefix "${newGenerationPathPrefix}"`,
     );
 
     const activationCommand = path.join(
@@ -132,7 +132,7 @@ export async function makeNewSystemGeneration({
     );
     await execThirdPartyCommand(
       `${activationCommand} ${executeActivation}`,
-      "Failed to activate the new generation",
+      `Failed to activate the new generation using ${activationCommand} ${executeActivation}`,
       {
         env: {
           NIXOS_INSTALL_BOOTLOADER: "1",

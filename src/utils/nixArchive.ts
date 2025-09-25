@@ -20,7 +20,7 @@ export async function copyOutputToArchive({
   const storeArg = storePath ? `--store ${storePath}` : "";
   await execThirdPartyCommand(
     `nix copy --to file://${archivePath} ${storeArg} ${item}`,
-    "Failed to copy a store path to an archive",
+    `Failed to copy store path "${item}" to archive at "${archivePath}"`,
   );
 }
 
@@ -100,6 +100,6 @@ export async function copyArchiveToStore({
   // We could try incorporating signatures in the future.
   await execThirdPartyCommand(
     `nix copy --no-check-sigs --from file://${archivePath} ${storeArg} ${item}`,
-    "Failed to copy an archive to the store",
+    `Failed to copy archive from "${archivePath}" into store path "${item}"`,
   );
 }

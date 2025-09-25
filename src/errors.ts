@@ -42,6 +42,21 @@ export async function execThirdPartyCommand(
       ...options,
     };
 
+    const formattedCommand = Array.isArray(command)
+      ? command
+          .map((part) =>
+            /\s/.test(part) || part.includes("\"")
+              ? JSON.stringify(part)
+              : part,
+          )
+          .join(" ")
+      : command;
+    const cwdInfo = execaOptions.cwd
+      ? ` (cwd: ${execaOptions.cwd})`
+      : "";
+    // eslint-disable-next-line no-console
+    console.info(`Running command: ${formattedCommand}${cwdInfo}`);
+
     const result = Array.isArray(command)
       ? await execa(command[0], command.slice(1), execaOptions)
       : await execaCommand(command, execaOptions);
@@ -52,19 +67,56 @@ export async function execThirdPartyCommand(
 }
 
 export function execErrorToCommandError(e: any, failedMessage: string) {
-  const command = e.command as string;
+  const command =
+    typeof e.command === "string" && e.command.length > 0
+      ? e.command
+      : "(unknown command)";
   const stdout = e.stdout as string | undefined;
   const stderr = e.stderr as string | undefined;
+  const exitCode = typeof e.exitCode === "number" ? e.exitCode : undefined;
+  const signal = e.signal as string | undefined;
+  const shortMessage = e.shortMessage as string | undefined;
+  const originalMessage = e.originalMessage as string | undefined;
+  const cwd = e.cwd ?? e.options?.cwd;
+  const timedOut = Boolean(e.timedOut);
+  const isCanceled = Boolean(e.isCanceled);
 
-  const commandName = command.split(" ")[0];
+  const commandName =
+    typeof e.command === "string" && e.command.length > 0
+      ? e.command.split(" ")[0]
+      : "command";
 
   const lines: string[] = [];
-  if (stdout) {
-    lines.push(`${commandName} stdout: ${stdout}`);
+  lines.push(`Command: ${command}`);
+  if (cwd) {
+    lines.push(`Working directory: ${cwd}`);
   }
-  if (stderr) {
-    lines.push(`${commandName} stderr: ${stderr}`);
+  if (exitCode !== undefined) {
+    lines.push(`Exit code: ${exitCode}`);
+  } else {
+    lines.push(`Exit code: unknown`);
   }
+  if (signal) {
+    lines.push(`Signal: ${signal}`);
+  }
+  if (timedOut) {
+    lines.push("Timed out: true");
+  }
+  if (isCanceled) {
+    lines.push("Canceled: true");
+  }
+  if (shortMessage) {
+    lines.push(`Error: ${shortMessage}`);
+  } else if (originalMessage) {
+    lines.push(`Error: ${originalMessage}`);
+  }
+  const stdoutContent =
+    typeof stdout === "string" && stdout.length > 0 ? stdout : "(empty)";
+  lines.push(`${commandName} stdout: ${stdoutContent}`);
+
+  const stderrContent =
+    typeof stderr === "string" && stderr.length > 0 ? stderr : "(empty)";
+  lines.push(`${commandName} stderr: ${stderrContent}`);
 
   return new CommandError(failedMessage, lines.join("\n"));
 }

@@ -88,6 +88,6 @@ export async function decompressInstructionDir({
     await tarExtractCommand;
     await xzDecompressCommand;
   } catch (e) {
-    throw execErrorToCommandError(e, "Failed to compress instruction");
+    throw execErrorToCommandError(e, "Failed to decompress instruction");
   }
 }
