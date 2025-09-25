@@ -8,9 +8,9 @@ const pathInfoData = z.object({
   narHash: z.string(),
   narSize: z.number(),
   references: z.array(z.string()),
-  signatures: z.array(z.string()).optional(),
-  registrationTime: z.number().optional(),
-  url: z.string().optional(),
+  signatures: z.array(z.string()).optional().nullable(),
+  registrationTime: z.number().optional().nullable(),
+  url: z.string().optional().nullable(),
   ultimate: z.boolean(),
 });
 
