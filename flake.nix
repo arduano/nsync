@@ -9,24 +9,24 @@
   outputs = { self, nixpkgs, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ ];
+        pkgs = import nixpkgs { inherit system; };
+        nsyncPkg = pkgs.callPackage ./package.nix { };
+      in {
+        packages = {
+          default = nsyncPkg.nsync;
+          nsync = nsyncPkg.nsync;
         };
 
-        nsync = pkgs.callPackage ./package.nix { };
-      in
-      {
-        # Devshell
-        devShell = nsync.nsyncFhsUserEnv.env;
-
-        # Run as package
-        packages.default = nsync.nsync;
-        packages.nsync = nsync.nsync;
-
-        # Export the package in an overlay
-        overlay = final: prev: {
-          nsync = final.pkgs.callPackage ./package.nix { };
+        apps.default = {
+          type = "app";
+          program = "${nsyncPkg.nsync}/bin/nsync";
         };
-      });
+
+        devShells.default = nsyncPkg.nsyncFhsUserEnv.env;
+      }
+    ) // {
+      overlays.default = final: prev: {
+        nsync = final.callPackage ./package.nix { };
+      };
+    };
 }
