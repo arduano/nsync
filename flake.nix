@@ -26,7 +26,7 @@
       }
     ) // {
       overlays.default = final: prev: {
-        nsync = final.callPackage ./package.nix { };
+        nsync = (final.callPackage ./package.nix { }).nsync;
       };
     };
 }
