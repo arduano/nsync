@@ -51,10 +51,12 @@ async function executeStoreSwitchCommand(
   args: z.infer<typeof storeSwitchCommandSchema>,
   shared: InstructionExecutionSharedArgs,
 ): Promise<void> {
+  const executeActivation = args.mode === "immediate" ? "switch" : undefined;
+
   await makeNewSystemGeneration({
-    storePath: "/",
+    storePath: shared.storePath,
     nixItemPath: args.item.nixPath,
-    executeActivation: "switch",
+    executeActivation,
   });
 }
 

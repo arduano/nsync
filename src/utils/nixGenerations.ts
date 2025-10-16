@@ -74,7 +74,7 @@ export async function getNixStoreGenerations(profilePrefix: string) {
   };
 }
 
-const systemProfilesPrefix = "/nix/var/nix/profiles/system";
+const systemProfilesRelativePath = "nix/var/nix/profiles/system";
 
 type GetNixStoreSystemGenerationsArgs = {
   storePath: string;
@@ -83,7 +83,8 @@ type GetNixStoreSystemGenerationsArgs = {
 export async function getNixStoreSystemGenerations({
   storePath,
 }: GetNixStoreSystemGenerationsArgs) {
-  const prefix = path.join(storePath, systemProfilesPrefix);
+  const normalizedStorePath = path.resolve(storePath);
+  const prefix = path.join(normalizedStorePath, systemProfilesRelativePath);
   return getNixStoreGenerations(prefix);
 }
 
@@ -101,7 +102,10 @@ export async function makeNewSystemGeneration({
   nixItemPath,
   executeActivation,
 }: MakeNewSystemGenerationArgs) {
-  const generationData = await getNixStoreSystemGenerations({ storePath });
+  const normalizedStorePath = path.resolve(storePath);
+  const generationData = await getNixStoreSystemGenerations({
+    storePath: normalizedStorePath,
+  });
   const generations = generationData?.generations ?? [];
 
   // Sort by generation number
@@ -115,22 +119,65 @@ export async function makeNewSystemGeneration({
   const newGenerationNumber = lastGenerationNumber + 1;
 
   const newGenerationLinkName = `-${newGenerationNumber}-link`;
-  const newGenerationPathPrefix = path.join(storePath, systemProfilesPrefix);
-  const newGenerationLinkPath = newGenerationPathPrefix + newGenerationLinkName;
+  const systemProfilesPrefixHost = path.join(
+    normalizedStorePath,
+    systemProfilesRelativePath,
+  );
+  const systemProfilesPrefixCommand =
+    normalizedStorePath === "/"
+      ? systemProfilesPrefixHost
+      : `/${systemProfilesRelativePath}`;
+  const newGenerationLinkPath =
+    systemProfilesPrefixHost + newGenerationLinkName;
 
   await fs.promises.symlink(nixItemPath, newGenerationLinkPath);
 
   if (executeActivation) {
-    await execThirdPartyCommand(
-      `nix-env --switch-generation -p ${newGenerationPathPrefix} ${newGenerationNumber}`,
-      `Failed to switch to generation ${newGenerationNumber} for profile prefix "${newGenerationPathPrefix}"`,
+    const runCommand = async (
+      command: string,
+      failedMessage: string,
+      options?: Parameters<typeof execThirdPartyCommand>[2],
+    ) => {
+      if (normalizedStorePath === "/") {
+        return execThirdPartyCommand(command, failedMessage, options);
+      }
+
+      const { env, ...otherOptions } = options ?? {};
+      const envAssignments = Object.entries(env ?? {})
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => {
+          const escaped = String(value).replace(/'/g, "'\\''");
+          return `${key}='${escaped}'`;
+        })
+        .join(" ");
+
+      const commandWithEnv = envAssignments
+        ? `${envAssignments} ${command}`
+        : command;
+
+      return execThirdPartyCommand(
+        [
+          "nixos-enter",
+          "--root",
+          normalizedStorePath,
+          "--command",
+          commandWithEnv,
+        ],
+        failedMessage,
+        otherOptions,
+      );
+    };
+
+    await runCommand(
+      `nix-env --switch-generation -p ${systemProfilesPrefixCommand} ${newGenerationNumber}`,
+      `Failed to switch to generation ${newGenerationNumber} for profile prefix "${systemProfilesPrefixHost}"`,
     );
 
     const activationCommand = path.join(
-      newGenerationPathPrefix,
+      systemProfilesPrefixCommand,
       "bin/switch-to-configuration",
     );
-    await execThirdPartyCommand(
+    await runCommand(
       `${activationCommand} ${executeActivation}`,
       `Failed to activate the new generation using ${activationCommand} ${executeActivation}`,
       {
