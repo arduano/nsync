@@ -24,7 +24,7 @@ type BuildStoreSwitchCommandArgs = {
   mode: "immediate" | "next-reboot";
 };
 
-async function buildStoreSwitchCommand(
+async function buildStoreSwitchCommand( 
   { kind, flakeUri, hostname, gitPointer, mode }: BuildStoreSwitchCommandArgs,
   { workdirStorePath, progressCallback }: InstructionBuilderSharedArgs,
 ): Promise<z.infer<typeof storeSwitchCommandSchema>> {

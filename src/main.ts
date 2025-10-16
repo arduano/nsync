@@ -93,6 +93,18 @@ const create = command({
       description:
         "The working directory path, where the nix store is built and the instruction is built before being compressed. Defaults to `.nsync` inside the flake's directory, or if the flake is remote, then this is a required argument.",
     }),
+    workdirStorePath: option({
+      type: optional(string),
+      long: "workdir-store",
+      description:
+        "The working directory path for the temporary nix store used while building instructions. Defaults to the workdir path.",
+    }),
+    workdirArchivePath: option({
+      type: optional(string),
+      long: "workdir-archive",
+      description:
+        "The working directory path for the temporary archive used while building instructions. Defaults to `${workdir}/archive`.",
+    }),
     dependencyRefs: multioption({
       type: array(string),
       long: "deps",
@@ -116,7 +128,9 @@ const create = command({
   },
   handler: async ({
     flakeUriWithHostname,
-    workdirPath,
+    workdirPath: workdirPathOption,
+    workdirStorePath: workdirStorePathOption,
+    workdirArchivePath: workdirArchivePathOption,
     reboot,
     dependencyRefs,
     newRef,
@@ -127,17 +141,19 @@ const create = command({
         splitFlakeArgToUriAndHostname(flakeUriWithHostname);
       const guessedWorkdirPath = getWorkdirFromFlakeArg(flakeUri);
 
-      if (!guessedWorkdirPath && !workdirPath) {
+      if (!guessedWorkdirPath && !workdirPathOption) {
         throw new CommandError(
           "Used a remote flake without specifying a workdir",
           "If the flake is remote, then the workdir path is required. Use the --workdir or -w option. Local flakes default the workdir to './.nsync' inside the flake's directory.",
         );
       }
 
-      workdirPath = workdirPath || guessedWorkdirPath!;
+      const workdirPath = workdirPathOption ?? guessedWorkdirPath!;
 
-      const workdirStorePath = `${workdirPath}`;
-      const workdirArchivePath = `${workdirPath}/archive`;
+      const workdirStorePath =
+        workdirStorePathOption ?? workdirPath;
+      const workdirArchivePath =
+        workdirArchivePathOption ?? `${workdirPath}/archive`;
       const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
 
       const dependencyPointers = dependencyRefs.flat().map(parseGitPointer);
