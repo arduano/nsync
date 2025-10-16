@@ -9,6 +9,7 @@ import {
   array,
   multioption,
   optional,
+  oneOf,
 } from "cmd-ts";
 
 import fs from "fs";
@@ -105,6 +106,13 @@ const create = command({
       description:
         "The working directory path for the temporary archive used while building instructions. Defaults to `${workdir}/archive`.",
     }),
+    switchMode: option({
+      type: oneOf(["immediate", "next-reboot"] as const),
+      defaultValue: () => "next-reboot" as const,
+      long: "switch-mode",
+      description:
+        'How to apply the new system generation on the target. Defaults to "next-reboot".',
+    }),
     dependencyRefs: multioption({
       type: array(string),
       long: "deps",
@@ -131,6 +139,7 @@ const create = command({
     workdirPath: workdirPathOption,
     workdirStorePath: workdirStorePathOption,
     workdirArchivePath: workdirArchivePathOption,
+    switchMode,
     reboot,
     dependencyRefs,
     newRef,
@@ -150,8 +159,7 @@ const create = command({
 
       const workdirPath = workdirPathOption ?? guessedWorkdirPath!;
 
-      const workdirStorePath =
-        workdirStorePathOption ?? workdirPath;
+      const workdirStorePath = workdirStorePathOption ?? workdirPath;
       const workdirArchivePath =
         workdirArchivePathOption ?? `${workdirPath}/archive`;
       const instructionFolderPath = `${workdirPath}/tmp/${fileId()}`;
@@ -170,7 +178,7 @@ const create = command({
       });
       buildArgs.push({
         kind: "switch",
-        mode: "immediate",
+        mode: switchMode,
         flakeUri,
         hostname,
         gitPointer: newPointer,
